@@ -16,7 +16,9 @@ trait Index {
 
   /** Given the values of a subset of the keys, find
     * all full tuples of keys such that latticeMap(keys) is not bottom.
-    * Precondition: keys.size == positions.size
+    * Precondition: keys.size == latticeMap.arity
+    * Note: The values keys[i] are relevant only for values of i in the positions set.
+    * For other values of i, keys[i] is irrelevant and ignored.
     * Postcondition: forall p in returned collection: p.size == latticeMap.arity
     */
   def get(keys: Array[Int]): Iterator[Array[Int]]
