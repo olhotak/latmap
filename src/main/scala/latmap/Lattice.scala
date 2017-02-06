@@ -2,7 +2,7 @@ package latmap
 
 trait Lattice {
   type Elem
-  def leq(other: Elem): Elem
-  def lub(other: Elem): Elem
+  def leq(a: Elem, b: Elem): Elem
+  def lub(a: Elem, b: Elem): Elem
   def bottom: Elem
 }

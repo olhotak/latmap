@@ -9,6 +9,7 @@ trait LatMap {
 
   /** Looks up the lattice element associated with a key.
     * The default value is bottom (if the keys are not in the map).
+    * Precondition: keys.size == arity
     */
   def get(keys: Array[Any]): lattice.Elem
 

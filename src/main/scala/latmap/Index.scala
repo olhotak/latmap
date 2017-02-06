@@ -12,7 +12,7 @@ trait Index {
   /** The subset of the (0-based) positions of the keys indexed.
     * Invariant: forall i. 0 <= keys.get(i) < latticeMap.arity
     **/
-  val positions: BitSet
+  val positions: Set[Int]
 
   /** Given the values of a subset of the keys, find
     * all full tuples of keys such that latticeMap(keys) is not bottom.
