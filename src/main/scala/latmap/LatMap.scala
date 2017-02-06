@@ -11,10 +11,10 @@ trait LatMap {
     * The default value is bottom (if the keys are not in the map).
     * Precondition: keys.size == arity
     */
-  def get(keys: Array[Any]): lattice.Elem
+  def get(keys: Array[Int]): lattice.Elem
 
   /** Iterator over all the keys mapped to a non-bottom lattice element. */
-  def keyIterator: Iterator[Array[Any]]
+  def keyIterator: Iterator[Array[Int]]
 
   /** Update the lattice element for a particular tuple of keys.
     * If the tuple is not yet in the map, associates it with the given lattice element.
@@ -24,7 +24,7 @@ trait LatMap {
     * Precondition: keys.size == arity
     * Returns true iff the lattice element associated with the keys tuple changed.
     */
-  def put(keys: Array[Any], elem: lattice.Elem): Boolean
+  def put(keys: Array[Int], elem: lattice.Elem): Boolean
 
   /** A list of indexes that have been associated with this lattice map. */
   def indexes: List[Index]

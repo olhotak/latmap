@@ -19,10 +19,10 @@ trait Index {
     * Precondition: keys.size == positions.size
     * Postcondition: forall p in returned collection: p.size == latticeMap.arity
     */
-  def get(keys: Array[Any]): Iterator[Array[Any]]
+  def get(keys: Array[Int]): Iterator[Array[Int]]
 
   /** Inform the index that a new tuple has been added to the latticeMap.
     * Precondition: keys.size == latticeMap.arity
     */
-  def put(keys: Array[Any]): Boolean
+  def put(keys: Array[Int]): Boolean
 }
