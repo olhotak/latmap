@@ -7,6 +7,8 @@ trait Plan {
   val keyRegs: Array[Int]
   val latRegs: Array[Any]
 
+  val planElements: PlanElement
+
   trait PlanElement {
     val next: PlanElement
     def go(): Unit
@@ -20,7 +22,6 @@ trait Plan {
 
     def go() = {
       val latticeMap = index.latticeMap
-      val lattice: latticeMap.lattice.type = latticeMap.lattice
       val keys = new Array[Int](latticeMap.arity)
       var i = 0
 
@@ -37,11 +38,13 @@ trait Plan {
         i = 0
         while(i < outputRegs.length) {
           keyRegs(outputRegs(i)) = outputs(i)
+          i = i + 1
         }
 
         if(outputLatReg >= 0) {
           var newLat = latticeMap.get(outputs)
           if(mergeLat) newLat = latticeMap.lattice.glb(newLat, latRegs(outputLatReg).asInstanceOf[latticeMap.lattice.Elem])
+          // TODO: break out early if newLat is bottom
           latRegs(outputLatReg) = newLat
         }
 
@@ -50,6 +53,18 @@ trait Plan {
 
     }
   }
+  trait TransferFnArray extends PlanElement {
+    val inputReg: Array[Int]
+    val outputReg: Int
+    val function: Array[Any]=>Any
+
+    def go() = {
+      // TODO
+      //      val input = if(inputReg >= 1000) latRegs(inputReg-1000) else i2f(keyRegs(inputReg))
+      val output = function(???)
+      if(outputReg >= 1000) latRegs(outputReg-1000) = output else keyRegs(outputReg) = f2i(output)
+    }
+    }
   trait TransferFn1 extends PlanElement {
     val inputReg: Int
     val outputReg: Int
