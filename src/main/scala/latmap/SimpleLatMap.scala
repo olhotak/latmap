@@ -1,7 +1,6 @@
 package latmap
 
 import scala.collection.mutable
-import latmap.DistLattice
 import scala.collection.mutable.WrappedArray
 import java.util.Arrays
 
