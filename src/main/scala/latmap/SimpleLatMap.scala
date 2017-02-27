@@ -2,15 +2,16 @@ package latmap
 
 import scala.collection.mutable
 import latmap.DistLattice
+import scala.collection.mutable.WrappedArray
 
 class SimpleLatMap extends LatMap {
-  val rows = mutable.Map.empty[List[Int], lattice.Elem]
+  val rows = mutable.Map.empty[WrappedArray[Int], lattice.Elem]
   val lattice = DistLattice
 
   override val arity: Int = 5
 
   override def get(keys: Array[Int]): lattice.Elem = {
-    rows.get(keys.toList) match {
+    rows.get(keys) match {
       case Some(e) => e
       case None => lattice.bottom
     }
@@ -21,7 +22,7 @@ class SimpleLatMap extends LatMap {
   }
 
   override def put(keys: Array[Int], elem: lattice.Elem): Boolean = {
-    rows.put(keys.toList, elem).contains(elem)
+    rows.put(keys, elem).contains(elem)
   }
 
   val indexes: mutable.ListBuffer[Index] = mutable.ListBuffer.empty[Index]
