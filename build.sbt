@@ -1,3 +1,18 @@
-name := "latmap"
+lazy val commonSettings = Seq(
+  scalaVersion := "2.12.1",
+  organization := "latmap"
+)
 
-scalaVersion := "2.12.1"
+lazy val dependencies = Seq(
+  "org.scalactic" %% "scalactic" % "3.0.1",
+  "org.scalatest" %% "scalatest" % "3.0.1" % Test
+)
+
+lazy val latmap = (project in file("."))
+  .settings(commonSettings: _*)
+  .settings(
+    name := "latmap",
+    scalaSource in Compile := baseDirectory.value / "src" / "main" / "scala",
+    scalaSource in Test := baseDirectory.value / "src" / "main" / "test",
+    libraryDependencies ++= dependencies
+  )

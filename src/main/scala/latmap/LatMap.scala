@@ -1,5 +1,7 @@
 package latmap
 
+import scala.collection.mutable
+
 /** A (mutable) map from tuples of keys to lattice elements. */
 trait LatMap {
   val lattice: Lattice
@@ -27,7 +29,7 @@ trait LatMap {
   def put(keys: Array[Int], elem: lattice.Elem): Boolean
 
   /** A list of indexes that have been associated with this lattice map. */
-  def indexes: List[Index]
+  def indexes: mutable.ListBuffer[Index]
 
   def addIndex(index: Index): Unit
 }
