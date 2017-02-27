@@ -1,5 +1,0 @@
-package latmap
-
-class SimpleIndex {
-
-}
