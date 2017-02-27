@@ -7,7 +7,7 @@ import scala.collection.BitSet
   * all full tuples of keys such that latticeMap(keys) is not bottom.
   */
 trait Index {
-  val latticeMap: LatMap
+  val latticeMap: LatMap[_]
 
   /** The subset of the (0-based) positions of the keys indexed.
     * Invariant: forall i. 0 <= keys.get(i) < latticeMap.arity

@@ -3,7 +3,7 @@ package latmap
 import scala.collection.mutable
 
 /** A (mutable) map from tuples of keys to lattice elements. */
-trait LatMap {
+trait LatMap[T <: Lattice] {
   val lattice: Lattice
 
   /** The number of keys (columns). */
