@@ -46,6 +46,7 @@ object DistLattice extends Lattice {
     case _ => Infinity
   }
   def bottom: Dist = Infinity
+  def top: Dist = NegInfinity
 }
 
 object TwoPointLattice extends Lattice {
@@ -79,6 +80,7 @@ object TwoPointLattice extends Lattice {
   }
 
   def bottom: Elem = Bot
+  def top: Elem = Top
 }
 
 object BoolLattice extends Lattice {
@@ -88,6 +90,7 @@ object BoolLattice extends Lattice {
   type Elem = Boolean
   def leq(a: Elem, b: Elem): Boolean = a || !b
   def lub(a: Elem, b: Elem): Elem = a || b
-  def glb(a: Elem, b: Elem): Elem = !(a || b)
+  def glb(a: Elem, b: Elem): Elem = a && b
   def bottom: Elem = false
+  def top: Elem = true
 }

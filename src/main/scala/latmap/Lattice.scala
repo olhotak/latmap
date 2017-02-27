@@ -6,4 +6,5 @@ trait Lattice {
   def lub(a: Elem, b: Elem): Elem
   def glb(a: Elem, b: Elem): Elem
   def bottom: Elem
+  def top: Elem
 }
