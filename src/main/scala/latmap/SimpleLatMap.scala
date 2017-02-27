@@ -1,6 +1,7 @@
 package latmap
 
 import scala.collection.mutable
+import latmap.DistLattice
 
 class SimpleLatMap extends LatMap {
   val rows = mutable.Map.empty[List[Int], lattice.Elem]

@@ -2,6 +2,8 @@ package latmap
 
 import org.scalatest._
 import Matchers._
+import latmap.TwoPointLattice
+import latmap.DistLattice
 
 class BasicTest extends FunSuite {
   test("dist lattice makes sense") {
