@@ -4,9 +4,8 @@ import scala.collection.mutable
 import scala.collection.mutable.WrappedArray
 import java.util.Arrays
 
-class SimpleLatMap extends LatMap {
+class SimpleLatMap[T <: Lattice](val lattice: T) extends LatMap[T] {
   val rows = mutable.Map.empty[WrappedArray[Int], lattice.Elem]
-  val lattice = DistLattice
 
   override val arity: Int = 5
 

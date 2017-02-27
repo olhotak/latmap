@@ -7,4 +7,5 @@ target
 .cache
 .cache-main
 .settings/
+.tmpBin/
 /bin/
