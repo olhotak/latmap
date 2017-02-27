@@ -1,2 +1,10 @@
 target
 .idea
+
+# Eclipse specific settings
+.project
+.classpath
+.cache
+.cache-main
+.settings/
+/bin/
