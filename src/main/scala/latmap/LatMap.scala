@@ -25,6 +25,7 @@ trait LatMap[T <: Lattice] {
     * Also calls put on all of the indexes.
     * Precondition: keys.size == arity
     * Returns true iff the lattice element associated with the keys tuple changed.
+    * TODO: Return Option[Elem]
     */
   def put(keys: Array[Int], elem: lattice.Elem): Boolean
 

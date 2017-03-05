@@ -26,6 +26,6 @@ trait Index {
   /** Inform the index that a new tuple has been added to the latticeMap.
     * Precondition: keys.size == latticeMap.arity
     */
-  // TODO what does return value mean?
+  // TODO what does return value mean? --> should be Unit
   def put(keys: Array[Int]): Boolean
 }

@@ -3,6 +3,10 @@ package latmap
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
 
+// TODO: Install the bytecode viewer
+// visualvm
+// TODO: special case two-element lattice latmap
+
 class SimpleLatMapTest extends FunSuite with Matchers {
     test("SimpleLatMap basic functionality") {
         val latmap = new SimpleLatMap(DistLattice)

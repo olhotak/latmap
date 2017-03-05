@@ -21,6 +21,8 @@ class SimpleLatMap[T <: Lattice](val lattice: T) extends LatMap[T] {
   }
 
   override def put(keys: Array[Int], elem: lattice.Elem): Boolean = {
+    // TODO: do LUB, update indices, check for bottom
+    // use leq to check
     rows.put(Arrays.copyOf(keys, keys.length), elem).contains(elem)
   }
 
