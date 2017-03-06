@@ -11,5 +11,5 @@ class NaiveIndex(
         } yield entry
     }
     
-    override def put(keys: Array[Int]) = false
+    override def put(keys: Array[Int]) = Unit
 }

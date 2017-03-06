@@ -22,6 +22,7 @@ class SimpleLatMap[T <: Lattice](val lattice: T) extends LatMap[T] {
   override def put(keys: Array[Int], elem: lattice.Elem): lattice.Elem = {
     val newLatElem = lattice.lub(elem, get(keys))
     rows.put(Arrays.copyOf(keys, keys.length), newLatElem)
+    indexes.foreach(_.put(keys))
     newLatElem
   }
 
