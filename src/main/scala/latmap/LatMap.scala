@@ -24,10 +24,9 @@ trait LatMap[T <: Lattice] {
     * lattice element previously associated with the keys tuple.
     * Also calls put on all of the indexes.
     * Precondition: keys.size == arity
-    * Returns true iff the lattice element associated with the keys tuple changed.
-    * TODO: Return Option[Elem]
+    * Returns the new lattice element associated with keys.
     */
-  def put(keys: Array[Int], elem: lattice.Elem): Boolean
+  def put(keys: Array[Int], elem: lattice.Elem): lattice.Elem
 
   /** A list of indexes that have been associated with this lattice map. */
   def indexes: mutable.ListBuffer[Index]
