@@ -3,7 +3,7 @@ package latmap
 import scala.collection.mutable.HashMap
 import java.util.Arrays
 
-class HashMapIndex(
+class ConcurrentHashMapIndex(
         val latticeMap: LatMap[_],
         val positions: Set[Int]) extends Index {
   

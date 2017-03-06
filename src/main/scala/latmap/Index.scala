@@ -10,6 +10,8 @@ import java.util.Arrays
   */
 trait Index {
   val latticeMap: LatMap[_]
+  
+  latticeMap.addIndex(this)
 
   /** The subset of the (0-based) positions of the keys indexed.
     * Invariant: forall i. 0 <= keys.get(i) < latticeMap.arity
