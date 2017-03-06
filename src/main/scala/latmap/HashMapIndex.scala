@@ -22,10 +22,8 @@ class HashMapIndex(
   private var store: Array[Int] = Array()
   
   override def get(keys: Array[Int]): Iterator[Array[Int]] = {
-    for {
-      entry <- latticeMap.keyIterator
-      if positions.forall(x => keys(x) == entry(x))
-    } yield entry
+      val idx = hash(keys) & (capacity - 1)
+      
   }
   
   // Same result as java.util.Arrays.hashCode
