@@ -8,12 +8,7 @@ class HashMapIndex(
         val positions: Set[Int]) extends Index {
   
   private val posns: Array[Int] = positions.toArray
-  private val notposns: Array[Int] = {
-    for {
-      i <- 0 until latticeMap.arity
-      if !positions.contains(i)
-    } yield i
-  }.toArray
+  private val notposns: Array[Int] = ((0 until latticeMap.arity).toSet -- positions).toArray
   
   private val empty = -1
   private val entryLen = latticeMap.arity
@@ -21,9 +16,63 @@ class HashMapIndex(
   private var capacity = 0 // always a power of 2!
   private var store: Array[Int] = Array()
   
-  override def get(keys: Array[Int]): Iterator[Array[Int]] = {
-      val idx = hash(keys) & (capacity - 1)
+  private def mask = capacity - 1 // since capacity is a power of 2
+  
+  private class EntryIterator(
+          val keys: Array[Int],
+          var pos: Int) extends Iterator[Array[Int]] {
       
+      def isMatch: Boolean = {
+          var i = 0
+          while (i < posns.length) {
+              if (keys(posns(i)) != store(pos * entryLen + i))
+                  return false
+          }
+          return true
+      }
+      
+      def isEmptyEntry = store(pos * entryLen) == empty
+      
+      def validatePosn() = {
+          do {
+              pos &= mask
+          } while (
+              if (isEmptyEntry || isMatch)
+                  false
+              else {
+                  pos += 1
+                  true
+              }
+          )
+      }
+      validatePosn()
+      
+      val resultHolder = new Array[Int](entryLen)
+      
+      def hasNext = !isEmptyEntry
+      def next() = {
+          {
+              var i = 0
+              while (i < posns.length) {
+                  resultHolder(posns(i)) = store(pos * entryLen + i)
+                  i += 1
+              }
+          }
+          {
+              var i = 0
+              while (i < notposns.length) {
+                  resultHolder(notposns(i)) = store(pos * entryLen + i + posns.length)
+                  i += 1
+              }
+          }
+          pos += 1
+          validatePosn()
+          resultHolder
+      }
+  }
+  
+  override def get(keys: Array[Int]): Iterator[Array[Int]] = {
+      new EntryIterator(keys, hash(keys))
   }
   
   // Same result as java.util.Arrays.hashCode
@@ -38,28 +87,72 @@ class HashMapIndex(
     result
   }
   
+  // Similar to hash, but uses the values in `store`
+  private def hashAt(arr: Array[Int], pos: Int): Int = {
+    var i = 0
+    var result = 1
+    while (i < posns.length) {
+      val x = arr(pos * entryLen + i)
+      result = result * 31 + x
+      i += 1
+    }
+    result
+  }
+  
   private def resize(len: Int): Unit = {
+    assert((len & (len - 1)) == 0) // len must be a power of 2
+    val newMask = len - 1
     val newStore = new Array[Int](len)
     Arrays.fill(newStore, empty)
+    
     {
       var i = 0
       while (i < store.length) {
-        if 
-        i += entryLen
+        if (store(i * entryLen) != empty) {
+          var idx = hashAt(store, i) & newMask
+          while (newStore(entryLen * idx) != empty) {
+            idx = (idx + 1) & newMask
+          }
+          var j = 0
+          while (j < entryLen) {
+            newStore(idx * entryLen + j) = store(i + j)
+          }
+          i += entryLen
+        }
+      }
+    }
+    capacity = len
+    store = newStore
+  }
+  
+  // ASK Should this check for duplicates?
+  private def insert(keys: Array[Int]): Unit = {
+    var idx = hash(keys) & mask
+    while (store(idx * entryLen) != empty) {
+      idx = (idx + 1) & mask
+    }
+    
+    {
+      var i = 0
+      while (i < posns.length) {
+        store(idx * entryLen + i) = keys(posns(i))
+        i += 1
+      }
+    }
+    {
+      var i = 0
+      while (i < notposns.length) {
+        store(idx * entryLen + posns.length + i) = keys(notposns(i))
+        i += 1
       }
     }
   }
-  
-  private def insert(keys: Array[Int]): Unit = {
-    val h = hash(keys) 
-  }
     
-  override def put(keys: Array[Int]): Boolean = {
+  override def put(keys: Array[Int]): Unit = {
     size += 1
     if (size * 2 > capacity)
       resize(capacity * 2)
     insert(keys)
-    false
   }
   
   resize(16)
