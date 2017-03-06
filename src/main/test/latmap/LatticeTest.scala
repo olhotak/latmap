@@ -3,7 +3,7 @@ package latmap
 import org.scalatest._
 import Matchers._
 
-class BasicTest extends FunSuite {
+class LatticeTest extends FunSuite {
   test("dist lattice makes sense") {
     // Upper bound of two numbers is their minimum.
     val lat = DistLattice
