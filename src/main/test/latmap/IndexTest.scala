@@ -3,6 +3,11 @@ package latmap
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
 import scala.util.Random
+import java.util.concurrent.atomic.AtomicInteger
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+import scala.concurrent.Await
 
 class IndexTest extends FunSuite with Matchers {
     def testIndex(name: String, f: (LatMap[_], Set[Int]) => Index) = {
@@ -52,17 +57,14 @@ class IndexTest extends FunSuite with Matchers {
             readers1: Int,
             writers2: Int,
             readers2: Int): Unit = {
-        require(writers1 == 1) // TODO
-        require(readers1 == 1) // TODO
-        require(writers2 == 1) // TODO
-        require(readers2 == 1) // TODO
+        require(writers1 == writers2) // TODO
+        require(readers1 == readers2) // TODO
         
         test(s"Stress test with $name on $writes writes and then $reads reads; ($writers1/$readers1) ($writers2/$readers2)") {
-            var nextSecond = 0
-            val rng = new Random(123)
+            val nextSecond = new AtomicInteger(0)
             def randomKey(): Array[Int] = {
-                nextSecond += 1
-                Array(rng.nextInt(10), rng.nextInt(2), nextSecond, nextSecond, nextSecond)
+                val v = nextSecond.incrementAndGet()
+                Array(v % 20 / 2, v % 20 % 2, v, v, v)
             }
             val latmap = new SimpleLatMap(DistLattice)
             val lattice = latmap.lattice
@@ -71,20 +73,39 @@ class IndexTest extends FunSuite with Matchers {
             val i2 = f2(latmap, Set(0, 1))
             
             (1 to 10) foreach { _ =>
-                (1 to writes) foreach { _ =>
-                    latmap.put(randomKey(), lattice.top)
+                val writers = for (i <- 1 to writers1) yield Future.apply {
+                    (1 to (writes / 10 / writers1)) foreach { _ =>
+                        latmap.put(randomKey(), lattice.top) 
+                    }
                 }
+                val writing = Future.sequence(writers)
+                Await.result(writing, Duration.Inf)
                 
-                (1 to reads) foreach { _ =>
-                    val k = randomKey()
-                    TestUtils.testKeysEqual(i1.getCollection(k), i2.getCollection(k))
+                val futures = for (i <- 1 to readers1) yield Future.apply {
+                    (1 to (reads / 10 / readers1)) forall { _ =>
+                        val k = randomKey()
+                        TestUtils.areKeysEqual(i1.getCollection(k), i2.getCollection(k))
+                    }
                 }
+                val computation = Future.sequence(futures)
+                val result = Await.result(computation, Duration.Inf)
+                assert(result.forall(identity))
             }
         }
     }
     
     testIndex("NaiveIndex", new NaiveIndex(_, _))
     testIndex("HashMapIndex", new HashMapIndex(_, _))
+    stressTest(
+            "NoOpIndex",
+            new NoOpIndex(_, _),
+            new NoOpIndex(_, _),
+            100000,
+            100000,
+            1,
+            1,
+            1,
+            1)
     stressTest(
             "NaiveIndex/HashMapIndex",
             new NaiveIndex(_, _),
@@ -95,4 +116,45 @@ class IndexTest extends FunSuite with Matchers {
             1,
             1,
             1)
+    stressTest(
+            "NaiveIndex/HashMapIndex [concurrent reads]",
+            new NaiveIndex(_, _),
+            new HashMapIndex(_, _),
+            1000,
+            1000,
+            1,
+            10,
+            1,
+            10)
+    stressTest(
+            "NaiveIndex/HashMapIndex [concurrent writes]",
+            new NaiveIndex(_, _),
+            new HashMapIndex(_, _),
+            1000,
+            1000,
+            10,
+            1,
+            10,
+            1)
+    stressTest(
+            "HashMapIndex/ConcurrentHashMapIndex",
+            new ConcurrentHashMapIndex(_, _),
+            new HashMapIndex(_, _),
+            1000,
+            1000,
+            1,
+            1,
+            1,
+            1)
+//    TODO make this not slow
+//    stressTest(
+//            "HashMapIndex/ConcurrentHashMapIndex",
+//            new ConcurrentHashMapIndex(_, _),
+//            new HashMapIndex(_, _),
+//            100000,
+//            100000,
+//            1,
+//            1,
+//            1,
+//            1)
 }

@@ -1,0 +1,66 @@
+
+
+Concurrent writing
+
+Table lock
+Next lock
+
+512 blocks
+Divide into 512 segments
+Insert (assuming no resize necessary)
+idx = hash(element)
+lock(block(idx))
+Insert regularly, releasing and taking another lock if we switch blocks
+
+At (most) times, maintain `next` which is the next array that you're going to resize into
+z
+atomic integer size
+atomic integer resizePosn
+atomic integer writtenCount
+semaphore waiter
+
+resizePosn >= capacity means we are not currently resizing
+
+store (current elements)
+next (not written to, just there for when we need it)
+target (place we're resizing into)
+
+
+Insert:
+    atomically increase size
+    if (size * 2 >= capacity) {
+        lock(table)
+        if (size * 2 >= capacity) {
+            target = next
+            atomically set resizePosn = 0
+            atomically set writtenCount = 0
+            allocate new value of next
+            unlock(table)
+        }
+        else
+        {
+            unlock(table)
+        }
+    }
+    pos = resizePosn.incrementAndGet()
+    if (pos >= capacity) {
+        if (writtenCount.compare(size)) {
+            waiter.notifyAll()
+        } else {
+            waiter.wait()
+        }
+        lock(switch)
+        if (target != null)
+            store = target
+        target = null
+        unlock(switch)
+        insert(...)
+    }
+    else {
+        lock(block(pos))
+        if (store(pos-1) == empty) {
+            copyBlock(pos)
+            writtenCount.delta(blockSize(pos))
+        }
+        return Insert
+    }
