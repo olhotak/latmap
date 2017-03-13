@@ -26,7 +26,7 @@ trait LatMap[T <: Lattice] {
     * Precondition: keys.size == arity
     * Returns the new lattice element associated with keys.
     */
-  def put(keys: Array[Int], elem: lattice.Elem): lattice.Elem
+  def put(keys: Array[Int], elem: lattice.Elem): Option[lattice.Elem]
 
   /** A list of indexes that have been associated with this lattice map. */
   def indexes: mutable.ListBuffer[Index]
