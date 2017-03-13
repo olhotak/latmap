@@ -17,11 +17,15 @@ class SimpleLatMap[T <: Lattice](val lattice: T, val arity: Int) extends LatMap[
     rows.keysIterator.map(_.toArray)
   }
 
-  override def put(keys: Array[Int], elem: lattice.Elem): lattice.Elem = {
-    val newLatElem = lattice.lub(elem, get(keys))
-    rows.put(Arrays.copyOf(keys, keys.length), newLatElem)
+  override def put(keys: Array[Int], elem: lattice.Elem): Option[lattice.Elem] = {
+    val oldElem = get(keys)
+    val newElem = lattice.lub(elem, oldElem)
     indexes.foreach(_.put(keys))
-    newLatElem
+    rows.put(Arrays.copyOf(keys, keys.length), newElem)
+    if (lattice.leq(oldElem, newElem) && lattice.leq(newElem, oldElem))
+      None
+    else
+      Some(newElem)
   }
 
   val indexes: mutable.ListBuffer[Index] = mutable.ListBuffer.empty[Index]
