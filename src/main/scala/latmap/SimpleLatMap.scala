@@ -3,10 +3,8 @@ package latmap
 import scala.collection.mutable
 import java.util.Arrays
 
-class SimpleLatMap[T <: Lattice](val lattice: T) extends LatMap[T] {
+class SimpleLatMap[T <: Lattice](val lattice: T, val arity: Int) extends LatMap[T] {
   val rows = mutable.Map.empty[mutable.WrappedArray[Int], lattice.Elem]
-
-  override val arity: Int = 5
 
   override def get(keys: Array[Int]): lattice.Elem = {
     rows.get(keys) match {

@@ -9,7 +9,7 @@ import org.scalatest.Matchers
 
 class SimpleLatMapTest extends FunSuite with Matchers {
     test("SimpleLatMap basic functionality") {
-        val latmap = new SimpleLatMap(DistLattice)
+        val latmap = new SimpleLatMap(DistLattice, 5)
         val lattice = latmap.lattice
         def Dst = DistLattice.Dst
 
