@@ -15,6 +15,7 @@ class HashMapIndex(
   private var size = 0
   private var capacity = 0 // always a power of 2!
   private var store: Array[Int] = Array()
+  private var jump: Array[Int] = Array()
   
   private def mask = capacity - 1 // since capacity is a power of 2
   
@@ -104,16 +105,19 @@ class HashMapIndex(
     assert((len & (len - 1)) == 0) // len must be a power of 2
     val newMask = len - 1
     val newStore = new Array[Int](len * entryLen)
+    jump = new Array[Int](len)
     Arrays.fill(newStore, empty)
     
     {
       var i = 0
       while (i < store.length) {
         if (store(i) != empty) {
-          var idx = hashAt(store, i) & newMask
+          val startIndex = hashAt(store, i) & newMask
+          var idx = (startIndex + jump(startIndex)) & newMask
           while (newStore(entryLen * idx) != empty) {
             idx = (idx + 1) & newMask
           }
+          jump(startIndex) = idx - startIndex + len
           var j = 0
           while (j < entryLen) {
             newStore(idx * entryLen + j) = store(i + j)
@@ -127,9 +131,9 @@ class HashMapIndex(
     store = newStore
   }
   
-  // ASK Should this check for duplicates?
   private def insert(keys: Array[Int]): Unit = {
-    var idx = hash(keys) & mask
+    val startIndex = hash(keys) & mask
+    var idx = (startIndex + jump(startIndex)) & mask
     while (store(idx * entryLen) != empty) {
       idx = (idx + 1) & mask
     }
@@ -148,6 +152,7 @@ class HashMapIndex(
         i += 1
       }
     }
+    jump(startIndex) = idx - startIndex + capacity
   }
     
   override def put(keys: Array[Int]): Unit = {

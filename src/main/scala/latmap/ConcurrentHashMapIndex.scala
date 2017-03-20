@@ -2,25 +2,35 @@ package latmap
 
 import scala.collection.mutable.HashMap
 import java.util.Arrays
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.ConcurrentLinkedQueue
 
 class ConcurrentHashMapIndex(
         val latticeMap: LatMap[_],
-        val positions: Set[Int]) extends Index {
+        val positions: Set[Int],
+        startingCapacity: Int) extends Index {
+  require(startingCapacity >= 1024)
   
   private val posns: Array[Int] = positions.toArray
   private val notposns: Array[Int] = ((0 until latticeMap.arity).toSet -- positions).toArray
   
   private val empty = -1
-  private val entryLen = latticeMap.arity
-  private var size = 0
+  private val entryLen = posns.length + 1
+  private val size = new AtomicInteger(0)
   private var capacity = 0 // always a power of 2!
   private var store: Array[Int] = Array()
+  private var lists: Array[ConcurrentLinkedQueue[Array[Int]]] = Array()
+  private val nextNode = new AtomicInteger(0)
+  
+  private val LOCK_COUNT = 64
+  private val locks = Array.fill(LOCK_COUNT)(new Object)
   
   private def mask = capacity - 1 // since capacity is a power of 2
   
   private class EntryIterator(
           val keys: Array[Int],
           var pos: Int) extends Iterator[Array[Int]] {
+      var iter: java.util.Iterator[Array[Int]] = null
       
       def isMatch: Boolean = {
           var i = 0
@@ -45,6 +55,9 @@ class ConcurrentHashMapIndex(
                   true
               }
           )
+          if (!isEmptyEntry) {
+              iter = lists(store(pos * entryLen + (entryLen - 1))).iterator()
+          }
       }
       validatePosn()
       
@@ -52,23 +65,12 @@ class ConcurrentHashMapIndex(
       
       def hasNext = !isEmptyEntry
       def next() = {
-          {
-              var i = 0
-              while (i < posns.length) {
-                  resultHolder(posns(i)) = store(pos * entryLen + i)
-                  i += 1
-              }
+          val result = iter.next()
+          if (!iter.hasNext()) {
+              pos += 1
+              validatePosn()
           }
-          {
-              var i = 0
-              while (i < notposns.length) {
-                  resultHolder(notposns(i)) = store(pos * entryLen + i + posns.length)
-                  i += 1
-              }
-          }
-          pos += 1
-          validatePosn()
-          resultHolder
+          result
       }
   }
   
@@ -101,61 +103,59 @@ class ConcurrentHashMapIndex(
   }
   
   private def resize(len: Int): Unit = {
+    assert(len == startingCapacity)
     assert((len & (len - 1)) == 0) // len must be a power of 2
-    val newMask = len - 1
-    val newStore = new Array[Int](len * entryLen)
-    Arrays.fill(newStore, empty)
-    
-    {
-      var i = 0
-      while (i < store.length) {
-        if (store(i) != empty) {
-          var idx = hashAt(store, i) & newMask
-          while (newStore(entryLen * idx) != empty) {
-            idx = (idx + 1) & newMask
-          }
-          var j = 0
-          while (j < entryLen) {
-            newStore(idx * entryLen + j) = store(i + j)
-            j += 1
-          }
-        }
-        i += entryLen
-      }
-    }
+    store = new Array[Int](len * entryLen)
+    Arrays.fill(store, empty)
+    lists = new Array[ConcurrentLinkedQueue[Array[Int]]](len)
     capacity = len
-    store = newStore
   }
   
-  // ASK Should this check for duplicates?
   private def insert(keys: Array[Int]): Unit = {
-    var idx = hash(keys) & mask
-    while (store(idx * entryLen) != empty) {
-      idx = (idx + 1) & mask
-    }
-    
-    {
-      var i = 0
-      while (i < posns.length) {
-        store(idx * entryLen + i) = keys(posns(i))
-        i += 1
-      }
-    }
-    {
-      var i = 0
-      while (i < notposns.length) {
-        store(idx * entryLen + posns.length + i) = keys(notposns(i))
-        i += 1
-      }
+    insertImpl(hash(keys) & mask)
+    def insertImpl(idx: Int): Unit = {
+        var done = false
+        if (store(idx * entryLen) == empty) {
+            locks(idx / LOCK_COUNT).synchronized {
+                if (store(idx * entryLen) == empty) {
+                    var i = 0
+                    while (i < posns.length) {
+                        store(idx * entryLen + i) = keys(posns(i))
+                        i += 1
+                    }
+                    val listIdx = nextNode.getAndIncrement()
+                    store(idx * entryLen + i) = listIdx
+                    lists(listIdx) = new ConcurrentLinkedQueue[Array[Int]]
+                    lists(listIdx).add(Arrays.copyOf(keys, keys.length))
+                    size.incrementAndGet()
+                    done = true
+                }
+            }
+        }
+        if (!done) {
+            var ok = true
+            var i = 0
+            while (i < posns.length && ok) {
+                if (store(idx * entryLen + i) != keys(posns(i)))
+                    ok = false
+                i += 1
+            }
+            val listIdx = store(idx * entryLen + (entryLen - 1))
+            if (ok && listIdx != empty) {
+                lists(listIdx).add(Arrays.copyOf(keys, keys.length))
+            }
+            else {
+                insertImpl((idx + 1) & mask)
+            }
+        }
     }
   }
     
   override def put(keys: Array[Int]): Unit = {
-    size += 1
-    if (size * 2 > capacity)
-      resize(capacity * 2)
     insert(keys)
+    if (size.get() * 2 > capacity)
+      resize(capacity * 2)
   }
   
-  resize(16)
+  resize(startingCapacity)
 }
