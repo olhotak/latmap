@@ -25,7 +25,7 @@ class Solver {
     ???
   }
   def solve(flixRules: List[FlixRule]) = {
-    // Step 1: Transform the FlixRules into a list of Rules, with appropriately bound planElement methods
+    // Step 1: Transform flixRules into a list of Rules, with appropriate planElement methods
     // Step 2: Figure out which flixRules are facts and write them to the appropriate LatMaps
     // Step 3:
   }

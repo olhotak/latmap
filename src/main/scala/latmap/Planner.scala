@@ -36,7 +36,7 @@ class Planner {
     var curPlanElement: PlanElement = initBodyRule.planElement(Set(), var2reg)
     boundVars ++= initBodyRule.variables
 
-    // TODO: Take cost into account, instead of just adding plan elements in order
+    // TODO: Take cost into account (esp. infinite costs), instead of just adding plan elements in order
     for (be <- rule.bodyElements) {
       if (be != initBodyRule) {
         val newPlanElement = be.planElement(boundVars.toSet, var2reg) // TODO: not .toSet
@@ -45,7 +45,7 @@ class Planner {
       }
     }
 
-    curPlanElement
+    Plan(curPlanElement)
   }
 
   def allocateVariables(rule: Rule): mutable.Map[RuleElement.Variable, Int] = {

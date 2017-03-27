@@ -11,7 +11,6 @@ case class Rule(headElement: RuleElement,
   * Variable: can be a key variable or a lattice variable.
   */
 object RuleElement {
-  // TODO: Look at this
   trait Variable {
     val name: AnyRef
   }
@@ -38,4 +37,7 @@ trait RuleElement {
     * to registers in the evaluation context.
     */
   def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement
+  // TODO: Add 'selectIndex' to LatMap for a given set of bound variables
 }
+
+class LatmapRuleElement(latmap: LatMap, variables: Seq[RuleElement.Variable]) extends RuleElement

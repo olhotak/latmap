@@ -15,6 +15,7 @@ trait EvalContext {
   val keyRegs: Array[Int]
   val latRegs: Array[Any]
 
+  // TODO: These are only for retrieving objects
   def readFromReg(reg: Int): Any = {
     if (reg >= 1000)
       latRegs(reg - 1000)
