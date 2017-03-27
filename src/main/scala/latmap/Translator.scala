@@ -7,10 +7,10 @@ class Translator {
   val fromIntMap = new mutable.ArrayBuffer[Any]
 
   def toInt(x: Any): Int = {
-    this.synchronized {
-      if (toIntMap.contains(x)) {
-        toIntMap(x)
-      } else {
+    if (toIntMap.contains(x)) {
+      toIntMap(x)
+    } else {
+      this.synchronized {
         val result = fromIntMap.size
         fromIntMap += x
         toIntMap(x) = result
@@ -20,8 +20,6 @@ class Translator {
   }
 
   def fromInt(x: Int): Any = {
-    if (x < fromIntMap.size) {
-      fromIntMap(x)
-    }
+    fromIntMap(x)
   }
 }

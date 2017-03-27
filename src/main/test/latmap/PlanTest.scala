@@ -5,24 +5,35 @@ import org.scalatest.FunSuite
 class PlanTest extends FunSuite {
   test("IndexScan basic functionality") {
     val lattice = DistLattice
-    val latmap = new SimpleLatMap(lattice, 2)
-    val index: Index = new NaiveIndex(latmap, Set(1))
+    val latMap = new SimpleLatMap(lattice, 2)
+    val outputLatMap = new SimpleLatMap(lattice, 2)
+    val index: Index = new NaiveIndex(latMap, Set(1))
+    val myTranslator: Translator = new Translator()
 
-    latmap.addIndex(index)
-    latmap.put(Array(1, 2), lattice.Dst(5))
-    latmap.put(Array(2, 2), lattice.Dst(6))
-    latmap.put(Array(2, 2), lattice.Dst(7))
-    latmap.put(Array(2, 2), lattice.Dst(8))
+    implicit def to_i(x: String): Int = myTranslator.toInt(x)
 
-    val planElement = IndexScan(index, mergeLat = false, Array(0, 1), Array(), 0,
-      WriteToLatMap())
+    latMap.addIndex(index)
+    latMap.put(Array("x", "y"), lattice.Dst(5))
+    latMap.put(Array("y", "z"), lattice.Dst(6))
+    latMap.put(Array("z", "a"), lattice.Dst(3))
+    latMap.put(Array("y", "a"), lattice.Dst(4))
+
+    val step0 = IndexScan(index, mergeLat = false, Array(0, 1), Array(0, 1), 0)
+    val step1 = FilterFn1(0, _.asInstanceOf[String].startsWith("z"))
+    val step2 = TransferFnArray(Array(0), 0, (_) => "y")
+    val step3 = WriteToLatMap(Array(0, 1), 0, outputLatMap)
+    step0.next = step1
+    step1.next = step2
+    step2.next = step3
 
     val evalContext = new EvalContext {
       override val latRegs: Array[Any] = new Array(10)
-      override val translator: Translator = new Translator()
-      override val keyRegs: Array[Int] = Array(0, 2, 0, 0, 0, 0, 0, 0, 0, 0)
+      override val translator: Translator = myTranslator
+      override val keyRegs: Array[Int] = Array(0, "a", 0, 0, 0, 0, 0, 0, 0, 0)
     }
 
-    planElement.go(evalContext)
+    step0.go(evalContext)
+    // TODO: Check correctness automatically
+    // Should output "Writing 1 3 -> Dst(3)"
   }
 }
