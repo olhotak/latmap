@@ -45,6 +45,5 @@ class PlannerTest extends FunSuite {
   test("Planner basic functionality") {
     val lattice = DistLattice
     val planner = new Planner()
-    val rules = ???
   }
 }

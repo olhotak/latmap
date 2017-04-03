@@ -39,10 +39,11 @@ trait RuleElement {
 class LatmapRuleElement[T <: Lattice](latmap: LatMap[T], vars: Seq[Variable]) extends RuleElement {
   private val keyVars = vars.filter(_.isInstanceOf[KeyVariable])
   private val latVars = vars.filter(_.isInstanceOf[LatVariable])
+  assert(latVars.size == 1)
 
   override def variables: Seq[Variable] = vars
   override def costEstimate(boundVars: Set[Variable]): Int = {
-    0
+    0 // TODO
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
     IndexScan(
@@ -52,5 +53,20 @@ class LatmapRuleElement[T <: Lattice](latmap: LatMap[T], vars: Seq[Variable]) ex
       outputRegs = boundVars.map(regAlloc).toArray,
       ??? // outputLatReg
     )
+  }
+}
+
+/**
+  * RuleElement for a rule representing a relation.
+  */
+class RelationRuleElement(vars: Seq[Variable]) extends RuleElement {
+  assert(vars.forall(_.isInstanceOf[KeyVariable]))
+
+  override def variables: Seq[Variable] = vars
+  override def costEstimate(boundVars: Set[Variable]): Int = {
+    0 // TODO
+  }
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
+    ???
   }
 }

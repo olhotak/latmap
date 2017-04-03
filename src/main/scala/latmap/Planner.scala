@@ -52,14 +52,12 @@ class Planner {
     var numLatVars = 0
 
     rule.variables.foreach((v) => v match {
-      case KeyVariable(keyVar) => {
+      case KeyVariable(keyVar) =>
         var2reg(v) = numKeyVars
         numKeyVars += 1
-      }
-      case LatVariable(latVar) => {
+      case LatVariable(latVar) =>
         var2reg(v) = numLatVars + 1000
         numLatVars += 1
-      }
     })
 
     assert(numKeyVars == rule.numKeyVars)
