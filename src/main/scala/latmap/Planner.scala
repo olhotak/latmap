@@ -18,7 +18,7 @@ class Planner {
     * @param bodyIdx: The index of the initially body element in the rule.
     *
     */
-  def plan(rule: Rule, bodyIdx: Int): Plan = {
+  def plan(rule: Rule, bodyIdx: Int): (Plan, EvalContext) = {
     // Step 1: Allocate variables to registers
     val var2reg = allocateVariables(rule)
     val boundVars = mutable.Set[Variable]()
@@ -31,19 +31,29 @@ class Planner {
       override val keyRegs: Array[Int] = new Array[Int](rule.numKeyVars)
     }
 
-    var curPlanElement: PlanElement = initBodyRule.planElement(Set(), var2reg)
+    val initPlanElement = initBodyRule.planElement(Set(), var2reg)
     boundVars ++= initBodyRule.variables
+    var curPlanElement = initPlanElement
 
     // TODO: Take cost into account (esp. infinite costs), instead of just adding plan elements in order
-    for (be <- rule.bodyElements) {
-      if (be != initBodyRule) {
-        val newPlanElement = be.planElement(boundVars.toSet, var2reg) // TODO: not .toSet
-        curPlanElement.next = newPlanElement
-        curPlanElement = newPlanElement
+    val remaining = rule.bodyElements.toSet
+    while (remaining.nonEmpty) {
+      var best: RuleElement = null
+      var bestCost = Int.MaxValue
+      for (elem <- remaining) {
+        val curCost = elem.costEstimate(boundVars.toSet)
+        if (curCost < bestCost) {
+          bestCost = curCost
+          best = elem
+        }
       }
+      curPlanElement.next = best.planElement(boundVars.toSet, var2reg) // TODO: don't use .toSet?
+      curPlanElement = curPlanElement.next
     }
 
-    Plan(curPlanElement)
+    curPlanElement.next = rule.headElement.writeToLatMap(var2reg)
+
+    (Plan(initPlanElement), context)
   }
 
   def allocateVariables(rule: Rule): mutable.Map[Variable, Int] = {

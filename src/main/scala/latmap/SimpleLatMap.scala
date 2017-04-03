@@ -21,7 +21,7 @@ class SimpleLatMap[T <: Lattice](val lattice: T, val arity: Int) extends LatMap[
     val oldElem = get(keys)
     val newElem = lattice.lub(elem, oldElem)
     indexes.foreach(_.put(keys))
-    rows.put(Arrays.copyOf(keys, keys.length), newElem)
+    rows.put(java.util.Arrays.copyOf(keys, keys.length), newElem)
     if (lattice.leq(oldElem, newElem) && lattice.leq(newElem, oldElem))
       None
     else

@@ -21,9 +21,6 @@ case class FlixAtom(name: String, terms: List[Term])
 case class FlixRule(head: FlixAtom, body: List[FlixAtom])
 
 class Solver {
-  def flixAtom2RuleElement(atom: FlixAtom): PlanElement = {
-    ???
-  }
   def solve(flixRules: List[FlixRule]) = {
     // Step 1: Transform flixRules into a list of Rules, with appropriate planElement methods
     // Step 2: Figure out which flixRules are facts and write them to the appropriate LatMaps

@@ -28,7 +28,12 @@ trait RuleElement {
     * to registers in the evaluation context.
     */
   def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement
-  // TODO: Add 'selectIndex' to LatMap for a given set of bound variables
+
+  /** Produces a WriteToLatMap PlanElement for when this rule element is the head of a rule.
+    */
+  def writeToLatMap(regAlloc: Variable=>Int): PlanElement = {
+    throw new Exception("Used non-head RuleElement in the head position")
+  }
 }
 
 /**
@@ -40,18 +45,26 @@ class LatmapRuleElement[T <: Lattice](latmap: LatMap[T], vars: Seq[Variable]) ex
   private val keyVars = vars.filter(_.isInstanceOf[KeyVariable])
   private val latVars = vars.filter(_.isInstanceOf[LatVariable])
   assert(latVars.size == 1)
+  private val latVar = latVars.head
 
   override def variables: Seq[Variable] = vars
   override def costEstimate(boundVars: Set[Variable]): Int = {
-    0 // TODO
+    0 // TODO: good cost estimate
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
     IndexScan(
-      latmap.indexes(???),
+      latmap.selectIndex(boundVars.map(vars.indexOf(_))),
       mergeLat = true,
       inputRegs = boundVars.map(regAlloc).toArray,
       outputRegs = boundVars.map(regAlloc).toArray,
-      ??? // outputLatReg
+      outputLatReg = regAlloc(latVar)
+    )
+  }
+  override def writeToLatMap(regAlloc: Variable=>Int): PlanElement = {
+    WriteToLatMap(
+      vars.map(regAlloc).toArray,
+      regAlloc(latVar),
+      latmap
     )
   }
 }
@@ -59,14 +72,36 @@ class LatmapRuleElement[T <: Lattice](latmap: LatMap[T], vars: Seq[Variable]) ex
 /**
   * RuleElement for a rule representing a relation.
   */
-class RelationRuleElement(vars: Seq[Variable]) extends RuleElement {
+class RelationRuleElement(latmap: LatMap[_], vars: Seq[Variable]) extends RuleElement {
   assert(vars.forall(_.isInstanceOf[KeyVariable]))
 
   override def variables: Seq[Variable] = vars
   override def costEstimate(boundVars: Set[Variable]): Int = {
-    0 // TODO
+    0 // TODO: good cost estimate
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
-    ???
+    KeyScan(
+      latmap.selectIndex(boundVars.map(vars.indexOf(_))),
+      boundVars.map(regAlloc).toArray,
+      boundVars.map(regAlloc).toArray
+    )
+  }
+}
+
+/**
+  * RuleElement for a transfer function.
+  */
+class TransferFnRuleElement(function: Array[Any] => Any, vars: Seq[Variable], outputVar: Variable)
+  extends RuleElement {
+//  private val liftedFn = (a: Array[Any]) => {
+//    // TODO: This removes the need for casting in the public interface. But there may be a better way.
+//    function(a.asInstanceOf[Array[T]])
+//  }
+  override def variables: Seq[Variable] = vars :+ outputVar
+  override def costEstimate(boundVars: Set[Variable]): Int = {
+    if (boundVars.subsetOf(vars.toSet)) 0 else Int.MaxValue
+  }
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
+    TransferFnArray(vars.map(regAlloc).toArray, regAlloc(outputVar), function)
   }
 }

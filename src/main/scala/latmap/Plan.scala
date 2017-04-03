@@ -125,7 +125,6 @@ case class IndexScan(index: Index,
   * @param inputRegs
   * @param outputReg
   * @param function
-  * @param next
   */
 case class TransferFnArray(inputRegs: Array[Int],
                            outputReg: Int,
