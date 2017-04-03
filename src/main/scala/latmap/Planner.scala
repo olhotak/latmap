@@ -1,7 +1,5 @@
 package latmap
 
-import latmap.RuleElement.{KeyVariable, LatVariable}
-
 import scala.collection.mutable
 
 class Planner {
@@ -23,7 +21,7 @@ class Planner {
   def plan(rule: Rule, bodyIdx: Int): Plan = {
     // Step 1: Allocate variables to registers
     val var2reg = allocateVariables(rule)
-    val boundVars = mutable.Set[RuleElement.Variable]()
+    val boundVars = mutable.Set[Variable]()
     val initBodyRule = rule.bodyElements(bodyIdx)
 
     // Step 2: Bind existing variables using existing facts
@@ -48,8 +46,8 @@ class Planner {
     Plan(curPlanElement)
   }
 
-  def allocateVariables(rule: Rule): mutable.Map[RuleElement.Variable, Int] = {
-    val var2reg = new mutable.HashMap[RuleElement.Variable, Int]
+  def allocateVariables(rule: Rule): mutable.Map[Variable, Int] = {
+    val var2reg = new mutable.HashMap[Variable, Int]
     var numKeyVars = 0
     var numLatVars = 0
 

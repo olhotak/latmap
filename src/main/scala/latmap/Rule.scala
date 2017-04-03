@@ -1,30 +1,21 @@
 package latmap
 
+trait Variable { val name: AnyRef }
+case class KeyVariable(name: AnyRef) extends Variable
+case class LatVariable(name: AnyRef) extends Variable
+
 case class Rule(headElement: RuleElement,
                 bodyElements: List[RuleElement]) {
-  val variables: Set[RuleElement.Variable] = headElement.variables ++ bodyElements.flatMap((be) => be.variables)
-  val numKeyVars: Int = variables.count(_.isInstanceOf[RuleElement.KeyVariable])
-  val numLatVars: Int = variables.count(_.isInstanceOf[RuleElement.LatVariable])
-}
-
-/**
-  * Variable: can be a key variable or a lattice variable.
-  */
-object RuleElement {
-  trait Variable {
-    val name: AnyRef
-  }
-  case class KeyVariable(name: AnyRef) extends Variable
-  case class LatVariable(name: AnyRef) extends Variable
+  val variables: Seq[Variable] = headElement.variables ++ bodyElements.flatMap((be) => be.variables)
+  val numKeyVars: Int = variables.count(_.isInstanceOf[KeyVariable])
+  val numLatVars: Int = variables.count(_.isInstanceOf[LatVariable])
 }
 
 /**
   * RuleElement. Anything that can be in the head or body of a Rule.
   */
 trait RuleElement {
-  import RuleElement.Variable
-
-  def variables: Set[Variable]
+  def variables: Seq[Variable]
 
   /** The cost estimate of evaluating this rule element if the boundVars are already bound
     * and other variables are free.
@@ -40,4 +31,26 @@ trait RuleElement {
   // TODO: Add 'selectIndex' to LatMap for a given set of bound variables
 }
 
-class LatmapRuleElement(latmap: LatMap, variables: Seq[RuleElement.Variable]) extends RuleElement
+/**
+  * RuleElement for a rule involving a single lattice element. e.g. Dist(a, b, d)
+  * @param latmap The LatMap of the lattice element.
+  * @param vars The variables in the body of the rule.
+  */
+class LatmapRuleElement[T <: Lattice](latmap: LatMap[T], vars: Seq[Variable]) extends RuleElement {
+  private val keyVars = vars.filter(_.isInstanceOf[KeyVariable])
+  private val latVars = vars.filter(_.isInstanceOf[LatVariable])
+
+  override def variables: Seq[Variable] = vars
+  override def costEstimate(boundVars: Set[Variable]): Int = {
+    0
+  }
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
+    IndexScan(
+      latmap.indexes(???),
+      mergeLat = true,
+      inputRegs = boundVars.map(regAlloc).toArray,
+      outputRegs = boundVars.map(regAlloc).toArray,
+      ??? // outputLatReg
+    )
+  }
+}
