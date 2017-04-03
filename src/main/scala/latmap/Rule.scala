@@ -55,14 +55,14 @@ class LatmapRuleElement[T <: Lattice](latmap: LatMap[T], vars: Seq[Variable]) ex
     IndexScan(
       latmap.selectIndex(boundVars.map(vars.indexOf(_))),
       mergeLat = true,
-      inputRegs = boundVars.map(regAlloc).toArray,
-      outputRegs = boundVars.map(regAlloc).toArray,
+      inputRegs = keyVars.map(regAlloc).toArray,
+      outputRegs = keyVars.map(regAlloc).toArray,
       outputLatReg = regAlloc(latVar)
     )
   }
   override def writeToLatMap(regAlloc: Variable=>Int): PlanElement = {
     WriteToLatMap(
-      vars.map(regAlloc).toArray,
+      keyVars.map(regAlloc).toArray,
       regAlloc(latVar),
       latmap
     )

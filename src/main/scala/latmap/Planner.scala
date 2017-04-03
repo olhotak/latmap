@@ -26,9 +26,9 @@ class Planner {
 
     // Step 2: Bind existing variables using existing facts
     val context = new EvalContext {
+      override val keyRegs: Array[Int] = new Array[Int](rule.numKeyVars)
       override val latRegs: Array[Any] = new Array[Any](rule.numLatVars)
       override val translator: Translator = new Translator() // TODO: potentially reuse translator between plan calls?
-      override val keyRegs: Array[Int] = new Array[Int](rule.numKeyVars)
     }
 
     val initPlanElement = initBodyRule.planElement(Set(), var2reg)
@@ -36,19 +36,20 @@ class Planner {
     var curPlanElement = initPlanElement
 
     // TODO: Take cost into account (esp. infinite costs), instead of just adding plan elements in order
-    val remaining = rule.bodyElements.toSet
+    val remaining = mutable.Set(rule.bodyElements:_*) // :_* splats the array into a list of arguments
     while (remaining.nonEmpty) {
       var best: RuleElement = null
       var bestCost = Int.MaxValue
       for (elem <- remaining) {
         val curCost = elem.costEstimate(boundVars.toSet)
-        if (curCost < bestCost) {
+        if (curCost <= bestCost) {
           bestCost = curCost
           best = elem
         }
       }
       curPlanElement.next = best.planElement(boundVars.toSet, var2reg) // TODO: don't use .toSet?
       curPlanElement = curPlanElement.next
+      remaining.remove(best)
     }
 
     curPlanElement.next = rule.headElement.writeToLatMap(var2reg)

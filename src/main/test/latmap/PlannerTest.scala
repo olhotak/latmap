@@ -79,5 +79,7 @@ class PlannerTest extends FunSuite {
     // Create a plan starting with the ShortestDist(a, b, d1) body element
     val (plan, evalContext) = planner.plan(rule, 0)
     plan.planElements.go(evalContext)
+    irintln(inputRegs.mkString(", "))
+    println(outputLatMap.arity)
   }
 }
