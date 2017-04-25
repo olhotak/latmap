@@ -8,13 +8,11 @@ import scala.collection.mutable.WrappedArray
 import java.util.concurrent.ConcurrentLinkedQueue
 import scala.annotation.tailrec
 
-final class SimpleLatMap[T <: Lattice](val lattice: T) extends LatMap[T] {
+final class SimpleLatMap[T <: Lattice](val lattice: T, val arity: Int) extends LatMap[T] {
 //val rows = mutable.Map.empty[mutable.WrappedArray[Int], lattice.Elem]
   val rows = new ConcurrentHashMap[mutable.WrappedArray[Int], lattice.Elem]
   val addQueue = new ConcurrentLinkedQueue[(mutable.WrappedArray[Int], lattice.Elem)]
   val indexAddQueue = new ConcurrentLinkedQueue[mutable.WrappedArray[Int]]
-  
-  override val arity: Int = 5
 
   override def get(keys: Array[Int]): lattice.Elem = {
     val k: mutable.WrappedArray[Int] = keys
@@ -68,17 +66,17 @@ final class SimpleLatMap[T <: Lattice](val lattice: T) extends LatMap[T] {
       }
   }
 
-  override def put(keys: Array[Int], elem: lattice.Elem): lattice.Elem = {
+  override def put(keys: Array[Int], elem: lattice.Elem): Option[lattice.Elem] = {
+    // TODO: The return value may not make sense,
+    // since it does not take into account the concurrent adds.
     addQueue.add(keys, elem)
-    val existing = rows.get(keys)
-    if (existing == null)
-    {
-        elem
-    }
+    val oldElem = rows.get(keys)
+    val newElem = lattice.lub(elem, oldElem)
+    
+    if (lattice.leq(oldElem, newElem) && lattice.leq(newElem, oldElem))
+      None
     else
-    {
-        lattice.lub(existing, elem)
-    }
+      Some(newElem)
   }
 
   val indexes: mutable.ListBuffer[Index] = mutable.ListBuffer.empty[Index]

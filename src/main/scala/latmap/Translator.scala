@@ -3,21 +3,23 @@ package latmap
 import scala.collection.mutable
 
 class Translator {
-  val toMap = new mutable.HashMap[Any, Int]
-  val fromMap = new mutable.ArrayBuffer[Any]
+  val toIntMap = new mutable.HashMap[Any, Int]
+  val fromIntMap = new mutable.ArrayBuffer[Any]
+
   def toInt(x: Any): Int = {
-    if (toMap.contains(x)) {
-      toMap(x)
+    if (toIntMap.contains(x)) {
+      toIntMap(x)
     } else {
-      val result = fromMap.size
-      fromMap += x
-      toMap(x) = result
-      result
+      this.synchronized {
+        val result = fromIntMap.size
+        fromIntMap += x
+        toIntMap(x) = result
+        result
+      }
     }
   }
+
   def fromInt(x: Int): Any = {
-    if (x < fromMap.size) {
-      fromMap(x)
-    }
+    fromIntMap(x)
   }
 }

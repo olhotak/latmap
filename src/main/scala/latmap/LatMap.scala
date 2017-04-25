@@ -22,7 +22,7 @@ trait LatMap[T <: Lattice] {
     * Precondition: keys.size == arity
     * Returns the least upper bound of the current value and the given value.
     */
-  def put(keys: Array[Int], elem: lattice.Elem): lattice.Elem
+  def put(keys: Array[Int], elem: lattice.Elem): Option[lattice.Elem]
   
   /** Client must call writePhase1, then betweenWritePhases, then writePhase2.
     * writePhase1 and writePhase2 are idempotent and can be called concurrently.
@@ -55,6 +55,22 @@ trait LatMap[T <: Lattice] {
 
   /** A list of indexes that have been associated with this lattice map. */
   def indexes: mutable.ListBuffer[Index]
+
+  /** Select the index to use for the given set of bound variables.
+    * If no such index exists, create a new NaiveIndex and use it. */
+  def selectIndex(boundVars: Set[Int]): Index = {
+    var best: Index = null
+    for (index <- indexes) {
+      if (index.positions.subsetOf(boundVars) && (best == null || best.positions.size > best.positions.size)) {
+        best = index
+      }
+    }
+    if (best == null) {
+      best = new NaiveIndex(this, boundVars)
+      indexes += best
+    }
+    best
+  }
 
   def addIndex(index: Index): Unit
 }
