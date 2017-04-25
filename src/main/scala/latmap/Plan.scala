@@ -1,88 +1,193 @@
 package latmap
 
-trait Plan {
-  val planElements: PlanElement
-}
+/**
+  * A Plan simply holds a pointer to the root PlanElement.
+  */
+case class Plan(planElements: PlanElement)
 
+/**
+  * Holds the current evaluation context, including registers for keys and lattice elements
+  * and the translator. Passed in to each PlanElement as the only parameter to go().
+  */
 trait EvalContext {
-  val i2f: Int => Any
-  val f2i: Any => Int
+  val translator: Translator
 
   val keyRegs: Array[Int]
   val latRegs: Array[Any]
+
+  // These are only for saving and retrieving objects.
+  def readFromReg(reg: Int): Any = {
+    if (reg >= 1000)
+      latRegs(reg - 1000)
+    else
+      translator.fromInt(keyRegs(reg))
+  }
+  def writeToReg(reg: Int, value: Any): Unit = {
+    if (reg >= 1000)
+      latRegs(reg - 1000) = value
+    else
+      keyRegs(reg) = translator.toInt(value)
+  }
 }
 
+/**
+  * A PlanElement acts on the evaluation context and calls go() on the next PlanElement a number of times.
+  */
 trait PlanElement {
-  val next: PlanElement
+  var next: PlanElement = null
   def go(evalContext: EvalContext): Unit
 }
 
-trait IndexScan extends PlanElement {
-  val index: Index
-  val inputRegs: Array[Int]
-  val outputRegs: Array[Int]
-  val outputLatReg: Int
-  val mergeLat: Boolean
-
-  def go(evalContext: EvalContext) = {
+// TODO: Could just use same set of registers for input and output
+case class KeyScan(index: Index,
+                   inputKeyRegs: Array[Int],
+                   outputKeyRegs: Array[Int]) extends PlanElement {
+  def go(evalContext: EvalContext): Unit = {
     val latticeMap = index.latticeMap
     val keys = new Array[Int](latticeMap.arity)
     var i = 0
 
+    while (i < latticeMap.arity) {
+      keys(i) = evalContext.keyRegs(inputKeyRegs(i))
+      i += 1
+    }
+    val iterator = index.get(keys)
+    while (iterator.hasNext) {
+      val outputs = iterator.next
+      i = 0
+      while (i < outputKeyRegs.length) {
+        i += 1
+        evalContext.keyRegs(outputKeyRegs(i)) = outputs(i)
+      }
+      next.go(evalContext)
+    }
+  }
+}
+
+/**
+  * Plan element that performs a scan over the provided index.
+  * For each result in the index,
+  *   writes the keys and lattice element to the provided output registers
+  *   and calls next.go().
+  *
+  * @param index index to scan *
+  * @param mergeLat whether or not to merge the lattice element
+  * @param inputRegs indices of the input registers. must hold keys.
+  * @param outputRegs indices of the output registers.
+  * @param outputLatReg index of the output lattice register.
+  */
+case class IndexScan(index: Index,
+                     mergeLat: Boolean,
+                     inputRegs: Array[Int],
+                     outputRegs: Array[Int],
+                     outputLatReg: Int) extends PlanElement {
+
+  def go(evalContext: EvalContext): Unit = {
+    val latticeMap: index.latticeMap.type = index.latticeMap
+    val keys = new Array[Int](latticeMap.arity)
+    var i = 0
+
     i = 0
-    while(i < latticeMap.arity) {
-      if(inputRegs(i) >= 0) keys(i) = evalContext.keyRegs(inputRegs(i))
-      i = i + 1
+    while (i < latticeMap.arity) {
+      if (inputRegs(i) >= 0)
+        keys(i) = evalContext.keyRegs(inputRegs(i))
+      i += 1
     }
 
     val iterator = index.get(keys)
-    while(iterator.hasNext) {
+    while (iterator.hasNext) {
       val outputs = iterator.next
 
+      // Write to output registers
       i = 0
-      while(i < outputRegs.length) {
+      while (i < outputRegs.length) {
         evalContext.keyRegs(outputRegs(i)) = outputs(i)
         i = i + 1
       }
 
-      if(outputLatReg >= 0) {
-        var newLat = latticeMap.get(outputs)
-        if(mergeLat) newLat = latticeMap.lattice.glb(newLat, evalContext.latRegs(outputLatReg).asInstanceOf[latticeMap.lattice.Elem])
-        // TODO: break out early if newLat is bottom
-        evalContext.latRegs(outputLatReg) = newLat
+      if (outputLatReg >= 0) { // TODO: why is this check here?
+        var newLat = latticeMap.get(outputs).asInstanceOf[latticeMap.lattice.Elem]
+        if (mergeLat)
+          newLat = latticeMap.lattice.glb(newLat, evalContext.latRegs(outputLatReg - 1000).asInstanceOf[latticeMap.lattice.Elem])
+        evalContext.latRegs(outputLatReg - 1000) = newLat
       }
 
       next.go(evalContext)
     }
-
   }
 }
-trait TransferFnArray extends PlanElement {
-  val inputReg: Array[Int]
-  val outputReg: Int
-  val function: Array[Any]=>Any
 
-  def go(evalContext: EvalContext) = {
-    // TODO
-    //      val input = if(inputReg >= 1000) latRegs(inputReg-1000) else i2f(keyRegs(inputReg))
-    val output = function(???)
-    if(outputReg >= 1000) evalContext.latRegs(outputReg-1000) = output else evalContext.keyRegs(outputReg) = evalContext.f2i(output)
-  }
-  }
-trait TransferFn1 extends PlanElement {
-  val inputReg: Int
-  val outputReg: Int
-  val function: Function1[Any,Any]
+/**
+  * PlanElement that produces a new value by calling the provided function
+  * on input from the input registers.
+  *
+  * @param inputRegs
+  * @param outputReg
+  * @param function
+  */
+case class TransferFnArray(inputRegs: Array[Int],
+                           outputReg: Int,
+                           function: Array[Any] => Any) extends PlanElement {
+  def go(evalContext: EvalContext): Unit = {
+    val input = new Array[Any](inputRegs.length)
+    var i = 0
 
-  def go(evalContext: EvalContext) = {
-    val input = if(inputReg >= 1000) evalContext.latRegs(inputReg-1000) else evalContext.i2f(evalContext.keyRegs(inputReg))
+    i = 0
+    while (i < inputRegs.length) {
+      input(i) = evalContext.readFromReg(inputRegs(i))
+      i += 1
+    }
+
     val output = function(input)
-    if(outputReg >= 1000) evalContext.latRegs(outputReg-1000) = output else evalContext.keyRegs(outputReg) = evalContext.f2i(output)
+    evalContext.writeToReg(outputReg, output)
+    next.go(evalContext)
   }
 }
-trait FilterFn1 extends PlanElement {
-  // TODO
+
+case class TransferFn1(inputReg: Int,
+                       outputReg: Int,
+                       function: Any => Any) extends PlanElement {
+  def go(evalContext: EvalContext): Unit = {
+    val input =
+      if (inputReg >= 1000)
+        evalContext.latRegs(inputReg - 1000)
+      else
+        evalContext.translator.fromInt(evalContext.keyRegs(inputReg))
+
+    val output = function(input)
+    if (outputReg >= 1000)
+      evalContext.latRegs(outputReg - 1000) = output
+    else
+      evalContext.keyRegs(outputReg) = evalContext.translator.toInt(output)
+  }
 }
-trait WriteToLatMap extends PlanElement {
-  // TODO
+case class FilterFn1(inputReg: Int,
+                     function: Any => Boolean) extends PlanElement {
+  def go(evalContext: EvalContext) = {
+    if ((inputReg >= 1000 && function(evalContext.latRegs(inputReg - 1000))) ||
+        function(evalContext.translator.fromInt(evalContext.keyRegs(inputReg)))) {
+      next.go(evalContext)
+    }
+  }
+}
+
+/**
+  * Writes a (key, value) pair specified by (inputRegs, inputLatReg) to
+  * the provided LatMap.
+  */
+case class WriteToLatMap[T <: Lattice](inputRegs: Array[Int],
+                                       inputLatReg: Int,
+                                       outputLatMap: LatMap[T]) extends PlanElement {
+  require(inputRegs.length == outputLatMap.arity)
+  def go(evalContext: EvalContext) = {
+    if (evalContext.latRegs(inputLatReg - 1000) != outputLatMap.lattice.bottom) {
+      println(s"Key regs: ${evalContext.keyRegs.map(evalContext.translator.fromInt).mkString(" ")}")
+      println(s"Lat regs: ${evalContext.latRegs.mkString(" ")}")
+      println("Writing " + inputRegs.map(evalContext.keyRegs(_)).map(evalContext.translator.fromInt).mkString(" ") +
+        " -> " + evalContext.latRegs(inputLatReg - 1000))
+      println()
+    }
+    outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)),
+      evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem])
+  }
 }

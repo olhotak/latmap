@@ -5,7 +5,7 @@ import org.scalatest.Matchers
 
 class IndexTest extends FunSuite with Matchers {
     def testIndex(name: String, f: (LatMap[_], Set[Int]) => Index) = {
-        val latmap = new SimpleLatMap(DistLattice)
+        val latmap = new SimpleLatMap(DistLattice, 5)
         val lattice = latmap.lattice
         
         val i1 = f(latmap, Set())
