@@ -44,7 +44,12 @@ class PlannerTest extends FunSuite {
   }
   test("Planner basic functionality") {
     val lattice = DistLattice
-    val headLat = new SimpleLatMap(lattice, 2)
+    val ShortestDist = new SimpleLatMap(lattice, 2)
+    val ShortestDistPrime = new SimpleLatMap(lattice, 2)
+    val myTranslator = new Translator()
+    implicit def to_i(x: String): Int = myTranslator.toInt(x)
+    ShortestDist.put(Array("x", "y"), lattice.Dst(5))
+    ShortestDist.put(Array("y", "z"), lattice.Dst(6))
     val planner = new Planner()
     val a = KeyVariable("a")
     val b = KeyVariable("b")
@@ -53,33 +58,35 @@ class PlannerTest extends FunSuite {
     val d2 = LatVariable("d2")
     val d1plusd2 = LatVariable("d1+d2")
     val rule = Rule(
-      new LatmapRuleElement(headLat, Seq(a, c, d1plusd2)),
+      new LatmapRuleElement(ShortestDistPrime, Seq(a, c, d1plusd2)),
       List(
-        new LatmapRuleElement(headLat, Seq(a, b, d1)),
-        new LatmapRuleElement(headLat, Seq(b, c, d2)),
-//        new TransferFnRuleElement((a: Array[lattice.Elem]) => {
-//          (a(0), a(1)) match {
-//            case (DistLattice.Infinity, _) => DistLattice.Infinity
-//            case (_, DistLattice.Infinity) => DistLattice.Infinity
-//            case (DistLattice.Dst(n1), DistLattice.Dst(n2)) => DistLattice.Dst(n1 + n2)
-//            case _ => DistLattice.NegInfinity
-//          }
-//        },
+        new LatmapRuleElement(ShortestDist, Seq(a, b, d1)),
+        new LatmapRuleElement(ShortestDist, Seq(b, c, d2)),
+        // TODO: Do some hack to allow typed TransferFn
         new TransferFnRuleElement((a: Array[Any]) => {
           (a(0), a(1)) match {
-            case (DistLattice.Infinity, _) => DistLattice.Infinity
-            case (_, DistLattice.Infinity) => DistLattice.Infinity
+            case (DistLattice.NegInfinity, _) => DistLattice.NegInfinity
+            case (_, DistLattice.NegInfinity) => DistLattice.NegInfinity
             case (DistLattice.Dst(n1), DistLattice.Dst(n2)) => DistLattice.Dst(n1 + n2)
-            case _ => DistLattice.NegInfinity
+            case _ => DistLattice.Infinity
           }
-        },
-          Seq(d1, d2), d1plusd2)
+        }, Seq(d1, d2), d1plusd2)
       )
     )
     // Create a plan starting with the ShortestDist(a, b, d1) body element
-    val (plan, evalContext) = planner.plan(rule, 0)
+    val plan = planner.plan(rule, 0)
+    val evalContext = new EvalContext {
+      override val keyRegs: Array[Int] = new Array[Int](rule.numKeyVars)
+      override val latRegs: Array[Any] = new Array[Any](rule.numLatVars)
+      override val translator: Translator = myTranslator
+    }
+
     plan.planElements.go(evalContext)
-    irintln(inputRegs.mkString(", "))
-    println(outputLatMap.arity)
+    println("Initial facts:")
+    ShortestDist.keyIterator.foreach((x) => println(
+      x.map(myTranslator.fromInt).mkString(" ") + " -> " + ShortestDist.get(x)))
+    println("New facts:")
+    ShortestDistPrime.keyIterator.foreach((x) => println(
+      x.map(myTranslator.fromInt).mkString(" ") + " -> " + ShortestDistPrime.get(x)))
   }
 }

@@ -15,7 +15,7 @@ trait EvalContext {
   val keyRegs: Array[Int]
   val latRegs: Array[Any]
 
-  // TODO: These are only for retrieving objects
+  // These are only for saving and retrieving objects.
   def readFromReg(reg: Int): Any = {
     if (reg >= 1000)
       latRegs(reg - 1000)
@@ -105,12 +105,11 @@ case class IndexScan(index: Index,
         i = i + 1
       }
 
-      if (outputLatReg >= 0) {
+      if (outputLatReg >= 0) { // TODO: why is this check here?
         var newLat = latticeMap.get(outputs).asInstanceOf[latticeMap.lattice.Elem]
         if (mergeLat)
-          newLat = latticeMap.lattice.glb(newLat, evalContext.latRegs(outputLatReg).asInstanceOf[latticeMap.lattice.Elem])
-        if (newLat != latticeMap.lattice.bottom)
-          evalContext.latRegs(outputLatReg) = newLat
+          newLat = latticeMap.lattice.glb(newLat, evalContext.latRegs(outputLatReg - 1000).asInstanceOf[latticeMap.lattice.Elem])
+        evalContext.latRegs(outputLatReg - 1000) = newLat
       }
 
       next.go(evalContext)
@@ -181,12 +180,14 @@ case class WriteToLatMap[T <: Lattice](inputRegs: Array[Int],
                                        outputLatMap: LatMap[T]) extends PlanElement {
   require(inputRegs.length == outputLatMap.arity)
   def go(evalContext: EvalContext) = {
-    println(s"Key regs: ${evalContext.keyRegs.mkString(" ")}")
-    println(s"Lat regs: ${evalContext.latRegs.mkString(" ")}")
-    println("Writing " + inputRegs.map(evalContext.keyRegs(_)).mkString(" ") +
-      " -> " + evalContext.latRegs(inputLatReg))
-    println()
+    if (evalContext.latRegs(inputLatReg - 1000) != outputLatMap.lattice.bottom) {
+      println(s"Key regs: ${evalContext.keyRegs.map(evalContext.translator.fromInt).mkString(" ")}")
+      println(s"Lat regs: ${evalContext.latRegs.mkString(" ")}")
+      println("Writing " + inputRegs.map(evalContext.keyRegs(_)).map(evalContext.translator.fromInt).mkString(" ") +
+        " -> " + evalContext.latRegs(inputLatReg - 1000))
+      println()
+    }
     outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)),
-      evalContext.latRegs(inputLatReg).asInstanceOf[outputLatMap.lattice.Elem])
+      evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem])
   }
 }

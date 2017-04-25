@@ -6,7 +6,7 @@ case class LatVariable(name: AnyRef) extends Variable
 
 case class Rule(headElement: RuleElement,
                 bodyElements: List[RuleElement]) {
-  val variables: Seq[Variable] = headElement.variables ++ bodyElements.flatMap((be) => be.variables)
+  val variables: Set[Variable] = (headElement.variables ++ bodyElements.flatMap((be) => be.variables)).toSet
   val numKeyVars: Int = variables.count(_.isInstanceOf[KeyVariable])
   val numLatVars: Int = variables.count(_.isInstanceOf[LatVariable])
 }
@@ -54,7 +54,7 @@ class LatmapRuleElement[T <: Lattice](latmap: LatMap[T], vars: Seq[Variable]) ex
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
     IndexScan(
       latmap.selectIndex(boundVars.map(vars.indexOf(_))),
-      mergeLat = true,
+      mergeLat = false,
       inputRegs = keyVars.map(regAlloc).toArray,
       outputRegs = keyVars.map(regAlloc).toArray,
       outputLatReg = regAlloc(latVar)

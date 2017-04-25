@@ -18,24 +18,25 @@ class Planner {
     * @param bodyIdx: The index of the initially body element in the rule.
     *
     */
-  def plan(rule: Rule, bodyIdx: Int): (Plan, EvalContext) = {
+  def plan(rule: Rule, bodyIdx: Int): Plan = {
     // Step 1: Allocate variables to registers
     val var2reg = allocateVariables(rule)
     val boundVars = mutable.Set[Variable]()
     val initBodyRule = rule.bodyElements(bodyIdx)
 
     // Step 2: Bind existing variables using existing facts
-    val context = new EvalContext {
-      override val keyRegs: Array[Int] = new Array[Int](rule.numKeyVars)
-      override val latRegs: Array[Any] = new Array[Any](rule.numLatVars)
-      override val translator: Translator = new Translator() // TODO: potentially reuse translator between plan calls?
-    }
+    // TODO: figure out where to create the initial EvalContext
+//    val context = new EvalContext {
+//      override val keyRegs: Array[Int] = new Array[Int](rule.numKeyVars)
+//      override val latRegs: Array[Any] = new Array[Any](rule.numLatVars)
+//      override val translator: Translator = new Translator()
+//    }
 
     val initPlanElement = initBodyRule.planElement(Set(), var2reg)
     boundVars ++= initBodyRule.variables
     var curPlanElement = initPlanElement
 
-    // TODO: Take cost into account (esp. infinite costs), instead of just adding plan elements in order
+    // Greedily add lowest cost RuleElement to the plan
     val remaining = mutable.Set(rule.bodyElements:_*) // :_* splats the array into a list of arguments
     while (remaining.nonEmpty) {
       var best: RuleElement = null
@@ -54,7 +55,7 @@ class Planner {
 
     curPlanElement.next = rule.headElement.writeToLatMap(var2reg)
 
-    (Plan(initPlanElement), context)
+    Plan(initPlanElement)
   }
 
   def allocateVariables(rule: Rule): mutable.Map[Variable, Int] = {

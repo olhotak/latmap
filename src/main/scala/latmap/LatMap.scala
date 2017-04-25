@@ -41,7 +41,7 @@ trait LatMap[T <: Lattice] {
       }
     }
     if (best == null) {
-      best = new NaiveIndex(this, Set())
+      best = new NaiveIndex(this, boundVars)
       indexes += best
     }
     best
