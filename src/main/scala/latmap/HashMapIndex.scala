@@ -162,5 +162,10 @@ class HashMapIndex(
     insert(keys)
   }
   
+  override def prepareForWrites(number: Int): Unit = {
+      // TODO (only for performance)
+      // (Obviously, not necessary if this index isn't used)
+  }
+  
   resize(16)
 }

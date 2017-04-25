@@ -5,34 +5,80 @@ import java.util.Arrays
 import java.util.concurrent.ConcurrentHashMap
 import java.util.function.BiFunction
 import scala.collection.mutable.WrappedArray
+import java.util.concurrent.ConcurrentLinkedQueue
+import scala.annotation.tailrec
 
-class SimpleLatMap[T <: Lattice](val lattice: T) extends LatMap[T] {
-//  val rows = mutable.Map.empty[mutable.WrappedArray[Int], lattice.Elem]
-    val rows = new ConcurrentHashMap[mutable.WrappedArray[Int], lattice.Elem]
-
+final class SimpleLatMap[T <: Lattice](val lattice: T) extends LatMap[T] {
+//val rows = mutable.Map.empty[mutable.WrappedArray[Int], lattice.Elem]
+  val rows = new ConcurrentHashMap[mutable.WrappedArray[Int], lattice.Elem]
+  val addQueue = new ConcurrentLinkedQueue[(mutable.WrappedArray[Int], lattice.Elem)]
+  val indexAddQueue = new ConcurrentLinkedQueue[mutable.WrappedArray[Int]]
+  
   override val arity: Int = 5
 
   override def get(keys: Array[Int]): lattice.Elem = {
     val k: mutable.WrappedArray[Int] = keys
     rows.get(k) match {
       case null => lattice.bottom
-      case x => x
+      case x    => x
     }
   }
 
   override def keyIterator: Iterator[Array[Int]] = {
     val keys = rows.keys()
     new Iterator[Array[Int]] {
-        def hasNext = keys.hasMoreElements()
-        def next = keys.nextElement().array
+      def hasNext = keys.hasMoreElements()
+      def next = keys.nextElement().array
     }
+  }
+  
+  // Can NOT be called concurrently
+  override def betweenWritePhases(): Unit = {
+      val writes = indexAddQueue.size()
+      indexes.foreach(_.prepareForWrites(writes))
+  }
+  
+  // Can be called by multiple threads on the same latmap at the same time
+  @tailrec override def writePhase1(): Unit = {
+      val write = addQueue.poll()
+      if (write != null)
+      {
+          val keys = write._1
+          val elem = write._2
+          var shouldAdd = true
+          rows.merge(keys, elem, new BiFunction[lattice.Elem, lattice.Elem, lattice.Elem] {
+              def apply(a: lattice.Elem, b: lattice.Elem) = {
+                  shouldAdd = false
+                  lattice.lub(a, b)
+              }
+          })
+          if (shouldAdd) {
+              indexAddQueue.add(keys)
+          }
+          writePhase1()
+      }
+  }
+  
+  @tailrec override def writePhase2(): Unit = {
+      val write = indexAddQueue.poll()
+      if (write != null)
+      {
+          indexes.foreach(_.put(write.array))
+          writePhase2()
+      }
   }
 
   override def put(keys: Array[Int], elem: lattice.Elem): lattice.Elem = {
-    indexes.foreach(_.put(keys))
-    rows.merge(keys, elem, new BiFunction[lattice.Elem, lattice.Elem, lattice.Elem] {
-        def apply(a: lattice.Elem, b: lattice.Elem) = lattice.lub(a, b)
-    })
+    addQueue.add(keys, elem)
+    val existing = rows.get(keys)
+    if (existing == null)
+    {
+        elem
+    }
+    else
+    {
+        lattice.lub(existing, elem)
+    }
   }
 
   val indexes: mutable.ListBuffer[Index] = mutable.ListBuffer.empty[Index]

@@ -18,13 +18,15 @@ class SimpleLatMapTest extends FunSuite with Matchers {
         latmap.put(Array(1, 2, 3, 4, 5), Dst(7)) shouldEqual Dst(7)
         latmap.put(Array(1, 2, 3, 4, 6), DistLattice.Infinity) shouldEqual DistLattice.Infinity
         latmap.put(Array(6, 2, 3, 4, 5), DistLattice.NegInfinity) shouldEqual DistLattice.NegInfinity
-        println(latmap.rows)
+
+        latmap.flushWrites()
         
         latmap.get(Array(1, 2, 3, 4, 5)) shouldEqual Dst(7)
         latmap.get(Array(1, 2, 3, 4, 6)) shouldEqual DistLattice.Infinity
         latmap.get(Array(6, 2, 3, 4, 5)) shouldEqual DistLattice.NegInfinity
 
         latmap.put(Array(1, 2, 3, 4, 5), Dst(-2)) shouldEqual Dst(-2)
+        latmap.flushWrites()
         latmap.get(Array(1, 2, 3, 4, 5)) shouldEqual Dst(-2)
 
         TestUtils.testKeysEqual(

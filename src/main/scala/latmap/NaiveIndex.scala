@@ -12,4 +12,6 @@ class NaiveIndex(
     }
     
     override def put(keys: Array[Int]) = Unit
+    
+    override def prepareForWrites(number: Int) = Unit
 }

@@ -4,12 +4,13 @@ import scala.collection.mutable.HashMap
 import java.util.Arrays
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.locks.ReentrantReadWriteLock
 
 class ConcurrentHashMapIndex(
         val latticeMap: LatMap[_],
         val positions: Set[Int],
         startingCapacity: Int) extends Index {
-  require(startingCapacity >= 1024)
+  require(startingCapacity >= 128)
   
   private val posns: Array[Int] = positions.toArray
   private val notposns: Array[Int] = ((0 until latticeMap.arity).toSet -- positions).toArray
@@ -24,6 +25,8 @@ class ConcurrentHashMapIndex(
   
   private val LOCK_COUNT = 64
   private val locks = Array.fill(LOCK_COUNT)(new Object)
+  
+  private val resizeLock = new ReentrantReadWriteLock
   
   private def mask = capacity - 1 // since capacity is a power of 2
   
@@ -103,12 +106,38 @@ class ConcurrentHashMapIndex(
   }
   
   private def resize(len: Int): Unit = {
-    assert(len == startingCapacity)
     assert((len & (len - 1)) == 0) // len must be a power of 2
-    store = new Array[Int](len * entryLen)
-    Arrays.fill(store, empty)
-    lists = new Array[ConcurrentLinkedQueue[Array[Int]]](len)
+    val newStore = new Array[Int](len * entryLen)
+    Arrays.fill(newStore, empty)
+    val newLists = new Array[ConcurrentLinkedQueue[Array[Int]]](len)
+    val currentSize = size.get()
+    
+    {
+      var i = 0
+      while (i < currentSize) {
+        newLists(i) = lists(i)
+        i += 1
+      }
+    }
+    
+    val newMask = len - 1
+    var idx = 0
+    while (idx < capacity) {
+        if (store(idx * entryLen) != empty) {
+            var newIdx = hashAt(store, idx * entryLen) & newMask
+            while (newStore(newIdx * entryLen) != empty)
+                newIdx = (newIdx + 1) & newMask
+            var i = 0
+            while (i < entryLen) {
+                newStore(newIdx * entryLen + i) = store(idx * entryLen + i)
+                i += 1
+            }
+        }
+        idx += 1
+    }
     capacity = len
+    store = newStore
+    lists = newLists
   }
   
   private def insert(keys: Array[Int]): Unit = {
@@ -152,9 +181,33 @@ class ConcurrentHashMapIndex(
   }
     
   override def put(keys: Array[Int]): Unit = {
+    resizeLock.readLock().lock()
     insert(keys)
-    if (size.get() * 2 > capacity)
-      resize(capacity * 2)
+    resizeLock.readLock().unlock()
+    
+    if (size.get() * 2 > capacity) {
+      resizeLock.writeLock().lock()
+      if (size.get() * 2 > capacity) {
+        resize(capacity * 2)
+      }
+      resizeLock.writeLock().unlock()
+    }
+  }
+  
+  // Smallest power of 2 greater than or equal to x
+  def nextPowerOf2(x: Int): Int = {
+      if ((x & (x - 1)) == 0)
+          x
+      else
+          nextPowerOf2(x + (x & -x))
+  }
+  
+  def prepareForWrites(number: Int): Unit = {
+      val newCapacity = nextPowerOf2(size.get() + number)
+      if (newCapacity > capacity)
+      {
+          resize(newCapacity)
+      }
   }
   
   resize(startingCapacity)

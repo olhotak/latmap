@@ -24,6 +24,7 @@ class IndexTest extends FunSuite with Matchers {
         latmap.put(Array(1, 1, 1, 0, 0), lattice.top)
         latmap.put(Array(1, 1, 1, 1, 0), lattice.top)
         latmap.put(Array(1, 1, 1, 1, 1), lattice.top)
+        latmap.flushWrites()
         
         test(s"${name}: i1") {
             TestUtils.testKeysEqual(
@@ -56,7 +57,8 @@ class IndexTest extends FunSuite with Matchers {
             writers1: Int,
             readers1: Int,
             writers2: Int,
-            readers2: Int): Unit = {
+            readers2: Int,
+            period: Int = 20): Unit = {
         require(writers1 == writers2) // TODO
         require(readers1 == readers2) // TODO
         
@@ -64,7 +66,7 @@ class IndexTest extends FunSuite with Matchers {
             val nextSecond = new AtomicInteger(0)
             def randomKey(): Array[Int] = {
                 val v = nextSecond.incrementAndGet()
-                Array(v % 20 / 2, v % 20 % 2, v, v, v)
+                Array(v % period / 2, v % period % 2, v, v, v)
             }
             val latmap = new SimpleLatMap(DistLattice)
             val lattice = latmap.lattice
@@ -214,4 +216,15 @@ class IndexTest extends FunSuite with Matchers {
             10,
             10,
             10)
+    stressTest(
+            "ConcurrentHashMapIndex/ConcurrentHashMapIndex with many distinct keys",
+            new ConcurrentHashMapIndex(_, _, 128),
+            new ConcurrentHashMapIndex(_, _, 128),
+            200000,
+            100,
+            10,
+            10,
+            10,
+            10,
+            1000)
 }

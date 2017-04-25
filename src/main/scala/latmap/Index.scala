@@ -41,4 +41,9 @@ trait Index {
     * Precondition: keys.size == latticeMap.arity
     */
   def put(keys: Array[Int]): Unit
+  
+  /** A call to this function should precede each write phase. 
+    * It lets the index resize to accomodate the upcoming writes.
+    */
+  def prepareForWrites(number: Int): Unit
 }
