@@ -15,4 +15,15 @@ object TestUtils extends FunSuite with Matchers {
         x shouldEqual y
     }
   }
+  
+  def areKeysEqual(a: TraversableOnce[Array[Int]], b: TraversableOnce[Array[Int]]) = {
+    val p = a.map(_.toList).toList
+    val q = b.map(_.toList).toList
+    
+    val x = p.groupBy(identity)
+    val y = q.groupBy(identity)
+    
+    x == y
+  }
+  
 }

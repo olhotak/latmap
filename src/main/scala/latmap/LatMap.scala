@@ -18,15 +18,40 @@ trait LatMap[T <: Lattice] {
   /** Iterator over all the keys mapped to a non-bottom lattice element. */
   def keyIterator: Iterator[Array[Int]]
 
-  /** Update the lattice element for a particular tuple of keys.
-    * If the tuple is not yet in the map, associates it with the given lattice element.
-    * Otherwise, associates the keys tuple with old.lub(elem), where old is the
-    * lattice element previously associated with the keys tuple.
-    * Also calls put on all of the indexes.
+  /** Prepares to add the (keys, elem) pair in the next write phase.
     * Precondition: keys.size == arity
-    * Returns the new lattice element associated with keys.
+    * Returns the least upper bound of the current value and the given value.
     */
   def put(keys: Array[Int], elem: lattice.Elem): Option[lattice.Elem]
+  
+  /** Client must call writePhase1, then betweenWritePhases, then writePhase2.
+    * writePhase1 and writePhase2 are idempotent and can be called concurrently.
+    * betweenWritePhases must be called exactly once between calls to writePhase1
+    * and writePhase2.
+    * So, it cannot be called concurrently.
+    * 
+    * If A is a call to writePhase1 and C is a call to writePhase2, one of the
+    * following must be true:
+    * (1) C happens-before A, or
+    * (2) There is a call to betweenWritePhases B such that A happens-before B
+    * and B happens-before C.
+    * 
+    * In other words, you should join on all the threads calling writePhase1,
+    * then call betweenWritePhases, then join on all the threads calling
+    * writePhase2 before calling writePhase1 again.
+    */
+  def writePhase1(): Unit
+  def betweenWritePhases(): Unit
+  def writePhase2(): Unit
+  
+  /**
+   * Simple single-threaded write flushing
+   */
+  def flushWrites() = {
+      writePhase1()
+      betweenWritePhases()
+      writePhase2()
+  }
 
   /** A list of indexes that have been associated with this lattice map. */
   def indexes: mutable.ListBuffer[Index]
