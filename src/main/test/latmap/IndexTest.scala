@@ -2,7 +2,6 @@ package latmap
 
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
-import scala.util.Random
 import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -68,7 +67,7 @@ class IndexTest extends FunSuite with Matchers {
                 val v = nextSecond.incrementAndGet()
                 Array(v % period / 2, v % period % 2, v, v, v)
             }
-            val latmap = new SimpleLatMap(DistLattice)
+            val latmap = new SimpleLatMap(DistLattice, 5)
             val lattice = latmap.lattice
             
             val i1 = f1(latmap, Set(0, 1))

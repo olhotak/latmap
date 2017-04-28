@@ -15,7 +15,7 @@ trait EvalContext {
   val keyRegs: Array[Int]
   val latRegs: Array[Any]
 
-  // These are only for saving and retrieving objects.
+  // These are only for saving and retrieving untranslated objects.
   def readFromReg(reg: Int): Any = {
     if (reg >= 1000)
       latRegs(reg - 1000)
@@ -189,5 +189,6 @@ case class WriteToLatMap[T <: Lattice](inputRegs: Array[Int],
     }
     outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)),
       evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem])
+    outputLatMap.flushWrites()
   }
 }

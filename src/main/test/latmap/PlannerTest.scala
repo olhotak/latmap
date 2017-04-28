@@ -3,60 +3,83 @@ package latmap
 import org.scalatest.FunSuite
 
 class PlannerTest extends FunSuite {
-  test("allocate variables") {
+  test("planner allocates variables") {
+    /**
+      * Creates a Rule that has six variables, and asserts that
+      * the planner allocates all six variables to different registers.
+      */
     val lattice = DistLattice
     val latMap = new SimpleLatMap(lattice, 2)
-    val outputLatMap = new SimpleLatMap(lattice, 2)
     val index: Index = new NaiveIndex(latMap, Set(1))
-    val myTranslator: Translator = new Translator()
 
-    val planner = new Planner()
+    val a = KeyVariable("a")
+    val b = KeyVariable("b")
+    val c = KeyVariable("c")
+    val d1plusd2 = KeyVariable("d1+d2")
+    val d1 = KeyVariable("d1")
+    val d2 = KeyVariable("d2")
+
+    // TODO: Use existing RuleElements instead of creating ones inside this test?
+    /**
+      * Dist(a, c, d1plusd2) :- Dist(a, b, d1), Dist(b, c, d2).
+      */
     val rule = Rule(
       new RuleElement {
         override def costEstimate(boundVars: Set[Variable]) = Int.MaxValue
-        override def variables = Seq(KeyVariable("a"), KeyVariable("c"), LatVariable("d"))
+        override def variables = Seq(a, c, d1plusd2)
         override def planElement(boundVars: Set[Variable], regAlloc: (Variable) => Int) = {
           IndexScan(index, mergeLat = false, Array(0, 1), Array(0, 1), 0)
         }
       },
       List(
-        // TODO: Fix placeholder planElement methods
         new RuleElement {
           override def costEstimate(boundVars: Set[Variable]) = Int.MaxValue
-          override def variables = Seq(KeyVariable("a"), KeyVariable("b"), LatVariable("d1"))
+          override def variables = Seq(a, b, d1)
           override def planElement(boundVars: Set[Variable], regAlloc: (Variable) => Int) = {
             IndexScan(index, mergeLat = false, Array(0, 1), Array(0, 1), 0)
           }
         },
         new RuleElement {
           override def costEstimate(boundVars: Set[Variable]) = Int.MaxValue
-          override def variables = Seq(KeyVariable("b"), KeyVariable("c"), LatVariable("d2"))
+          override def variables = Seq(b, c, d2)
           override def planElement(boundVars: Set[Variable], regAlloc: (Variable) => Int) = {
             IndexScan(index, mergeLat = false, Array(0, 1), Array(0, 1), 0)
           }
         }
       )
     )
+
+    val planner = new Planner()
     val var2reg = planner.allocateVariables(rule)
-    println(s"Register allocation: ${var2reg}")
-    println(s"Number of key variables: ${rule.numKeyVars}")
-    println(s"Number of lattice variables: ${rule.numLatVars}")
+    assertResult(Set(a, b, c, d1plusd2, d1, d2)) {
+      var2reg.keySet
+    }
+    assert(var2reg.values.toSet.size == 7)
   }
-  test("Planner basic functionality") {
+
+  test("planner works with rule elements") {
+    /**
+      * Runs the planner on the rule
+      *   Dist(a, c, d1+d2) :- Dist(a, b, d1), Dist(b, c, d2).
+      * given a starting set of facts and verifies that the results are correct.
+      */
     val lattice = DistLattice
     val ShortestDist = new SimpleLatMap(lattice, 2)
     val ShortestDistPrime = new SimpleLatMap(lattice, 2)
     val myTranslator = new Translator()
     implicit def to_i(x: String): Int = myTranslator.toInt(x)
+
     ShortestDist.put(Array("x", "y"), lattice.Dst(5))
     ShortestDist.put(Array("y", "z"), lattice.Dst(6))
-    val planner = new Planner()
+    ShortestDist.flushWrites()
+
     val a = KeyVariable("a")
     val b = KeyVariable("b")
     val c = KeyVariable("c")
     val d1 = LatVariable("d1")
     val d2 = LatVariable("d2")
     val d1plusd2 = LatVariable("d1+d2")
+
     val rule = Rule(
       new LatmapRuleElement(ShortestDistPrime, Seq(a, c, d1plusd2)),
       List(
@@ -74,6 +97,7 @@ class PlannerTest extends FunSuite {
       )
     )
     // Create a plan starting with the ShortestDist(a, b, d1) body element
+    val planner = new Planner()
     val plan = planner.plan(rule, 0)
     val evalContext = new EvalContext {
       override val keyRegs: Array[Int] = new Array[Int](rule.numKeyVars)

@@ -24,20 +24,14 @@ class Planner {
     val boundVars = mutable.Set[Variable]()
     val initBodyRule = rule.bodyElements(bodyIdx)
 
-    // Step 2: Bind existing variables using existing facts
-    // TODO: figure out where to create the initial EvalContext
-//    val context = new EvalContext {
-//      override val keyRegs: Array[Int] = new Array[Int](rule.numKeyVars)
-//      override val latRegs: Array[Any] = new Array[Any](rule.numLatVars)
-//      override val translator: Translator = new Translator()
-//    }
-
+    // Step 2: Create an initial PlanElement and bind its variables
     val initPlanElement = initBodyRule.planElement(Set(), var2reg)
     boundVars ++= initBodyRule.variables
     var curPlanElement = initPlanElement
+    println(curPlanElement)
 
-    // Greedily add lowest cost RuleElement to the plan
-    val remaining = mutable.Set(rule.bodyElements:_*) // :_* splats the array into a list of arguments
+    // Step 3: Greedily add the lowest cost PlanElement to the plan
+    val remaining = mutable.Set(rule.bodyElements:_*) - initBodyRule
     while (remaining.nonEmpty) {
       var best: RuleElement = null
       var bestCost = Int.MaxValue
@@ -48,11 +42,13 @@ class Planner {
           best = elem
         }
       }
-      curPlanElement.next = best.planElement(boundVars.toSet, var2reg) // TODO: don't use .toSet?
+      curPlanElement.next = best.planElement(boundVars.toSet, var2reg)
       curPlanElement = curPlanElement.next
+      println(curPlanElement)
       remaining.remove(best)
     }
 
+    // Step 4: Add a final PlanElement that writes the result to the LatMap
     curPlanElement.next = rule.headElement.writeToLatMap(var2reg)
 
     Plan(initPlanElement)
@@ -74,6 +70,7 @@ class Planner {
 
     assert(numKeyVars == rule.numKeyVars)
     assert(numLatVars == rule.numLatVars)
+    println(var2reg)
     var2reg
   }
 }
