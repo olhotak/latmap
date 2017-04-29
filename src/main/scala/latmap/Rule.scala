@@ -53,7 +53,8 @@ class LatmapRuleElement[T <: Lattice](latmap: LatMap[T], vars: Seq[Variable]) ex
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
     IndexScan(
-      latmap.selectIndex(boundVars.map(vars.indexOf(_))),
+      //latmap.selectIndex(vars.zipWithIndex.collect { case (e, i) if boundVars.contains(e) => i }.toSet),
+      latmap.selectIndex(boundVars.map(vars.indexOf(_)).filter(_ >= 0)),
       mergeLat = false,
       inputRegs = keyVars.map(regAlloc).toArray,
       outputRegs = keyVars.map(regAlloc).toArray,
@@ -81,7 +82,7 @@ class RelationRuleElement(latmap: LatMap[_], vars: Seq[Variable]) extends RuleEl
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
     KeyScan(
-      latmap.selectIndex(boundVars.map(vars.indexOf(_))),
+      latmap.selectIndex(boundVars.map(vars.indexOf(_)).filter(_ >= 0)),
       boundVars.map(regAlloc).toArray,
       boundVars.map(regAlloc).toArray
     )

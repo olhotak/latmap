@@ -106,7 +106,7 @@ case class IndexScan(index: Index,
       }
 
       if (outputLatReg >= 0) { // TODO: why is this check here?
-        var newLat = latticeMap.get(outputs).asInstanceOf[latticeMap.lattice.Elem]
+        var newLat = latticeMap.get(outputs)
         if (mergeLat)
           newLat = latticeMap.lattice.glb(newLat, evalContext.latRegs(outputLatReg - 1000).asInstanceOf[latticeMap.lattice.Elem])
         evalContext.latRegs(outputLatReg - 1000) = newLat

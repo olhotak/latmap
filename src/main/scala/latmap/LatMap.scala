@@ -61,7 +61,7 @@ trait LatMap[T <: Lattice] {
   def selectIndex(boundVars: Set[Int]): Index = {
     var best: Index = null
     for (index <- indexes) {
-      if (index.positions.subsetOf(boundVars) && (best == null || best.positions.size > best.positions.size)) {
+      if (index.positions == boundVars) {
         best = index
       }
     }
