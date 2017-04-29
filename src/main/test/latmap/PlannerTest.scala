@@ -1,5 +1,6 @@
 package latmap
 
+import latmap.DistLattice.Dst
 import org.scalatest.FunSuite
 
 class PlannerTest extends FunSuite {
@@ -54,14 +55,17 @@ class PlannerTest extends FunSuite {
     assertResult(Set(a, b, c, d1plusd2, d1, d2)) {
       var2reg.keySet
     }
-    assert(var2reg.values.toSet.size == 7)
+    assert(var2reg.values.toSet.size == 6)
   }
 
   test("planner works with rule elements") {
     /**
       * Runs the planner on the rule
       *   Dist(a, c, d1+d2) :- Dist(a, b, d1), Dist(b, c, d2).
-      * given a starting set of facts and verifies that the results are correct.
+      * given facts
+      *   Dist("x", "y", Dst(5)), Dist("y", "z", Dst(6))
+      * and expects the following new fact to be inferred:
+      *   Dist("x", "z", Dst(11))
       */
     val lattice = DistLattice
     val ShortestDist = new SimpleLatMap(lattice, 2)
@@ -106,11 +110,8 @@ class PlannerTest extends FunSuite {
     }
 
     plan.planElements.go(evalContext)
-    println("Initial facts:")
-    ShortestDist.keyIterator.foreach((x) => println(
-      x.map(myTranslator.fromInt).mkString(" ") + " -> " + ShortestDist.get(x)))
-    println("New facts:")
-    ShortestDistPrime.keyIterator.foreach((x) => println(
-      x.map(myTranslator.fromInt).mkString(" ") + " -> " + ShortestDistPrime.get(x)))
+    ShortestDistPrime.flushWrites()
+    assert(ShortestDistPrime.keyIterator.size == 1)
+    assert(ShortestDistPrime.get(Array("x", "z")) == Dst(11))
   }
 }

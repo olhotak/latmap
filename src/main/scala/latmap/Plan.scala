@@ -180,15 +180,7 @@ case class WriteToLatMap[T <: Lattice](inputRegs: Array[Int],
                                        outputLatMap: LatMap[T]) extends PlanElement {
   require(inputRegs.length == outputLatMap.arity)
   def go(evalContext: EvalContext) = {
-    if (evalContext.latRegs(inputLatReg - 1000) != outputLatMap.lattice.bottom) {
-      println(s"Key regs: ${evalContext.keyRegs.map(evalContext.translator.fromInt).mkString(" ")}")
-      println(s"Lat regs: ${evalContext.latRegs.mkString(" ")}")
-      println("Writing " + inputRegs.map(evalContext.keyRegs(_)).map(evalContext.translator.fromInt).mkString(" ") +
-        " -> " + evalContext.latRegs(inputLatReg - 1000))
-      println()
-    }
     outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)),
       evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem])
-    outputLatMap.flushWrites()
   }
 }
