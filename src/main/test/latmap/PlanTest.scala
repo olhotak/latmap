@@ -33,7 +33,6 @@ class PlanTest extends FunSuite {
     }
 
     step0.go(evalContext)
-    // TODO: Check correctness automatically
-    // Should output "Writing 1 3 -> Dst(3)"
+    outputLatMap.flushWrites()
   }
 }

@@ -94,10 +94,6 @@ class RelationRuleElement(latmap: LatMap[_], vars: Seq[Variable]) extends RuleEl
   */
 class TransferFnRuleElement(function: Array[Any] => Any, vars: Seq[Variable], outputVar: Variable)
   extends RuleElement {
-//  private val liftedFn = (a: Array[Any]) => {
-//    // TODO: This removes the need for casting in the public interface. But there may be a better way.
-//    function(a.asInstanceOf[Array[T]])
-//  }
   override def variables: Seq[Variable] = vars :+ outputVar
   override def costEstimate(boundVars: Set[Variable]): Int = {
     if (boundVars.subsetOf(vars.toSet)) 0 else Int.MaxValue

@@ -89,7 +89,7 @@ class PlannerTest extends FunSuite {
       List(
         new LatmapRuleElement(ShortestDist, Seq(a, b, d1)),
         new LatmapRuleElement(ShortestDist, Seq(b, c, d2)),
-        // TODO: Do some hack to allow typed TransferFn
+        // TODO: Remove need for casting for TransferFnRuleElements.
         new TransferFnRuleElement((a: Array[Any]) => {
           (a(0), a(1)) match {
             case (DistLattice.NegInfinity, _) => DistLattice.NegInfinity

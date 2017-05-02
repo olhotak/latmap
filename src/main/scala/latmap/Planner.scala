@@ -24,7 +24,7 @@ class Planner {
     val boundVars = mutable.Set[Variable]()
     val initBodyRule = rule.bodyElements(bodyIdx)
 
-    // Step 2: Create an initial PlanElement and bind its variables
+    // Step 2: Create an initial PlanElement and add its variables to the bound list
     val initPlanElement = initBodyRule.planElement(Set(), var2reg)
     boundVars ++= initBodyRule.variables
     var curPlanElement = initPlanElement
@@ -70,7 +70,6 @@ class Planner {
 
     assert(numKeyVars == rule.numKeyVars)
     assert(numLatVars == rule.numLatVars)
-    println(var2reg)
     var2reg
   }
 }
