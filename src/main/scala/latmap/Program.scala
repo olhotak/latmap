@@ -4,7 +4,7 @@ trait Program {
   trait ProgVariable
   type Variable <: ProgVariable
   trait ProgAtom {
-    def latMap: LatMap[_]
+    def latMap: LatMap[_ <: Lattice]
     def keyVars: Seq[Variable]
     def latVar: Variable
   }
