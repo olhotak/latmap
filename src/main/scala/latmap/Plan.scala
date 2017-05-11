@@ -83,7 +83,7 @@ case class IndexScan(index: Index,
                      outputLatReg: Int) extends PlanElement {
 
   def go(evalContext: EvalContext): Unit = {
-    val latticeMap: index.latticeMap.type = index.latticeMap
+    val latticeMap: LatMap[_ <: Lattice] = index.latticeMap
     val keys = new Array[Int](latticeMap.arity)
     var i = 0
 
@@ -107,6 +107,7 @@ case class IndexScan(index: Index,
 
       if (outputLatReg >= 0) { // TODO: why is this check here?
         var newLat = latticeMap.get(outputs)
+        val lattice: Lattice = latticeMap.lattice
         if (mergeLat)
           newLat = latticeMap.lattice.glb(newLat, evalContext.latRegs(outputLatReg - 1000).asInstanceOf[latticeMap.lattice.Elem])
         evalContext.latRegs(outputLatReg - 1000) = newLat
@@ -175,9 +176,9 @@ case class FilterFn1(inputReg: Int,
   * Writes a (key, value) pair specified by (inputRegs, inputLatReg) to
   * the provided LatMap.
   */
-case class WriteToLatMap[T <: Lattice](inputRegs: Array[Int],
+case class WriteToLatMap(inputRegs: Array[Int],
                                        inputLatReg: Int,
-                                       outputLatMap: LatMap[T]) extends PlanElement {
+                                       outputLatMap: LatMap[_ <: Lattice]) extends PlanElement {
   require(inputRegs.length == outputLatMap.arity)
   def go(evalContext: EvalContext) = {
     outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)),

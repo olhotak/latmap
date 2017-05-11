@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
 class ConcurrentHashMapIndex(
-        val latticeMap: LatMap[_],
+        val latticeMap: LatMap[_ <: Lattice],
         val positions: Set[Int],
         startingCapacity: Int) extends Index {
   require(startingCapacity >= 128)

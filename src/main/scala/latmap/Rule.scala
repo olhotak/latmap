@@ -41,7 +41,7 @@ trait RuleElement {
   * @param latmap The LatMap of the lattice element.
   * @param vars The variables in the body of the rule.
   */
-class LatmapRuleElement[T <: Lattice](latmap: LatMap[T], vars: Seq[Variable]) extends RuleElement {
+class LatmapRuleElement(latmap: LatMap[_ <: Lattice], vars: Seq[Variable]) extends RuleElement {
   private val keyVars = vars.filter(_.isInstanceOf[KeyVariable])
   private val latVars = vars.filter(_.isInstanceOf[LatVariable])
   assert(latVars.size == 1)

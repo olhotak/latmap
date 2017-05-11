@@ -9,7 +9,7 @@ import java.util.Arrays
   * all full tuples of keys such that latticeMap(keys) is not bottom.
   */
 trait Index {
-  val latticeMap: LatMap[_]
+  val latticeMap: LatMap[_ <: Lattice]
   
   latticeMap.addIndex(this)
 

@@ -5,6 +5,7 @@ import org.scalatest.FunSuite
 class SolverTest extends FunSuite {
   test("solver") {
     val solver = new Solver()
+    /*
     val sumDist = TransferFn(
       (x: DistLattice.Elem, y: DistLattice.Elem) => (x, y) match {
         case (DistLattice.NegInfinity, _) => DistLattice.NegInfinity
@@ -20,6 +21,7 @@ class SolverTest extends FunSuite {
         FlixAtom("Dist", List(KeyVar("y"), KeyVar("z"), LatVar("d2")))
       )
     )))
+    */
     // potential DSL:
 //    solver.solve(List(
 //      Reachable(x, z) :- Reachable(x, y), Reachable(y, z).

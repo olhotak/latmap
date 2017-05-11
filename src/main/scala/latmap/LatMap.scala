@@ -4,7 +4,8 @@ import scala.collection.mutable
 
 /** A (mutable) map from tuples of keys to lattice elements. */
 trait LatMap[T <: Lattice] {
-  val lattice: Lattice
+  val lattice: T
+  type Elem = lattice.Elem
 
   /** The number of keys (columns). */
   def arity: Int
@@ -13,7 +14,7 @@ trait LatMap[T <: Lattice] {
     * The default value is bottom (if the keys are not in the map).
     * Precondition: keys.size == arity
     */
-  def get(keys: Array[Int]): lattice.Elem
+  def get(keys: Array[Int]): Elem
 
   /** Iterator over all the keys mapped to a non-bottom lattice element. */
   def keyIterator: Iterator[Array[Int]]
@@ -22,7 +23,7 @@ trait LatMap[T <: Lattice] {
     * Precondition: keys.size == arity
     * Returns the least upper bound of the current value and the given value.
     */
-  def put(keys: Array[Int], elem: lattice.Elem): Option[lattice.Elem]
+  def put(keys: Array[Int], elem: Elem): Option[Elem]
   
   /** Client must call writePhase1, then betweenWritePhases, then writePhase2.
     * writePhase1 and writePhase2 are idempotent and can be called concurrently.

@@ -1,7 +1,7 @@
 package latmap
 
 class NaiveIndex(
-        val latticeMap: LatMap[_],
+        val latticeMap: LatMap[_ <: Lattice],
         val positions: Set[Int]) extends Index {
     
     override def get(keys: Array[Int]): Iterator[Array[Int]] = {

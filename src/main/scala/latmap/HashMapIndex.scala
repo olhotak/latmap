@@ -4,7 +4,7 @@ import scala.collection.mutable.HashMap
 import java.util.Arrays
 
 class HashMapIndex(
-        val latticeMap: LatMap[_],
+        val latticeMap: LatMap[_ <: Lattice],
         val positions: Set[Int]) extends Index {
   
   private val posns: Array[Int] = positions.toArray

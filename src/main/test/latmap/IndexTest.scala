@@ -9,7 +9,7 @@ import scala.concurrent.Future
 import scala.concurrent.Await
 
 class IndexTest extends FunSuite with Matchers {
-    def testIndex(name: String, f: (LatMap[_], Set[Int]) => Index) = {
+    def testIndex(name: String, f: (LatMap[_ <: Lattice], Set[Int]) => Index) = {
         val latmap = new SimpleLatMap(DistLattice, 5)
         val lattice = latmap.lattice
         
@@ -49,8 +49,8 @@ class IndexTest extends FunSuite with Matchers {
     
     def stressTest(
             name: String,
-            f1: (LatMap[_], Set[Int]) => Index,
-            f2: (LatMap[_], Set[Int]) => Index,
+            f1: (LatMap[DistLattice.type], Set[Int]) => Index,
+            f2: (LatMap[DistLattice.type], Set[Int]) => Index,
             writes: Int,
             reads: Int,
             writers1: Int,
