@@ -5,7 +5,9 @@ import javax.swing.ProgressMonitor
 import scala.collection.mutable
 
 class APIImpl extends API with Program {
-  case class Variable(id: Int) extends APIVariable with ProgVariable
+  case class Variable(id: Int) extends APIVariable with ProgVariable {
+    def :=(constant: Any) = Const(this, constant)
+  }
 
   var nextId = 0
   def variable(): Variable = {
@@ -29,13 +31,17 @@ class APIImpl extends API with Program {
     new Relation(arity, BoolLattice)
   }
 
-  case class Atom(latMap: LatMap[_ <: Lattice], keyVars: Seq[Variable], latVar: Variable) extends APIAtom with ProgAtom {
-    def :-(atoms: Atom*): Unit = {
+  trait BodyElem extends APIBodyElem with ProgBodyElem
+
+  case class Atom(latMap: LatMap[_ <: Lattice], keyVars: Seq[Variable], latVar: Variable) extends BodyElem with APIAtom with ProgAtom {
+    def :-(atoms: BodyElem*): Unit = {
       rules += Rule(this, atoms)
     }
   }
 
-  case class Rule(head: Atom, body: Seq[Atom]) extends ProgRule
+  case class Const(variable: Variable, constant: Any) extends ProgConst with BodyElem
+
+  case class Rule(head: Atom, body: Seq[BodyElem]) extends ProgRule
 
   val rules = mutable.ArrayBuffer[Rule]()
 

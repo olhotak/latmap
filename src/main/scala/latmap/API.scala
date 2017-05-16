@@ -1,7 +1,12 @@
 package latmap
 
 trait API {
-  trait APIVariable
+  trait APIBodyElem
+  type BodyElem <: APIBodyElem
+
+  trait APIVariable {
+    def :=(constant: Any): Const
+  }
   type Variable <: APIVariable
   def variable(): Variable
 
@@ -12,10 +17,13 @@ trait API {
   def relation(arity: Int, lattice: Lattice): Relation
   def relation(arity: Int): Relation
 
-  trait APIAtom {
-    def :-(atoms: Atom*): Unit
+  trait APIAtom extends APIBodyElem {
+    def :-(body: BodyElem*): Unit
   }
-  type Atom <: APIAtom
+  type Atom <: APIAtom with BodyElem
+
+  type Const <: BodyElem
+
   type Rule
 
   def solve(): Unit
