@@ -1,5 +1,7 @@
 package latmap
 
+import java.util.concurrent.ConcurrentHashMap
+
 import scala.collection.mutable
 
 /** A (mutable) map from tuples of keys to lattice elements. */
@@ -15,6 +17,9 @@ trait LatMap[T <: Lattice] {
     * Precondition: keys.size == arity
     */
   def get(keys: Array[Int]): Elem
+
+  /** number of keys mapped to a non-bottom lattice element. */
+  def numFacts() : Int
 
   /** Iterator over all the keys mapped to a non-bottom lattice element. */
   def keyIterator: Iterator[Array[Int]]

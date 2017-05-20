@@ -21,10 +21,10 @@ class PlanTest extends FunSuite {
     val step0 = IndexScan(index, mergeLat = false, Array(0, 1), Array(0, 1), 1000)
     val step1 = FilterFn1(0, _.asInstanceOf[String].startsWith("z"))
     val step2 = TransferFnArray(Array(0), 0, (_) => "y")
-    val step3 = WriteToLatMap(Array(0, 1), 1000, outputLatMap)
+    //val step3 = WriteToLatMap(Array(0, 1), 1000, outputLatMap)
     step0.next = step1
     step1.next = step2
-    step2.next = step3
+    //step2.next = step3
 
     val evalContext = new EvalContext {
       override val latRegs: Array[Any] = new Array(10)

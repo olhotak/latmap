@@ -89,6 +89,8 @@ class APIImpl extends API {
 
       program.rules += program.Rule(this.convert(convertTerm),
         (atoms map {atom => atom.convert(convertTerm)}) ++ constants)
+      //val newAtoms = if(latMap.lattice eq BoolLattice) atoms :+ Const(latVar, BoolLattice.top) else atoms
+      //rules += Rule(this, newAtoms)
     }
   }
 

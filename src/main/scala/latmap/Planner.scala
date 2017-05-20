@@ -18,17 +18,30 @@ class Planner {
     * @param bodyIdx: The index of the initially body element in the rule.
     *
     */
-  def plan(rule: Rule, bodyIdx: Int): Plan = {
+  def plan(rule: Rule, bodyIdx: Option[Int] = None): Plan = {
     // Step 1: Allocate variables to registers
     val var2reg = allocateVariables(rule)
     val boundVars = mutable.Set[Variable]()
-    val initBodyRule = rule.bodyElements(bodyIdx)
 
+    // skip step 2 for constant elements
     // Step 2: Create an initial PlanElement and add its variables to the bound list
-    val initPlanElement = initBodyRule.planElement(Set(), var2reg)
+    val initBodyRule : RuleElement = bodyIdx match {
+      case Some(x) => rule.bodyElements(x)
+      case None => rule.bodyElements(0)
+    }
+
+    val initPlanElement = initBodyRule match {
+      case latConstRuleElement : LatConstantRuleElement =>
+        latConstRuleElement.planElement(Set(), var2reg)
+      case constRuleElement : KeyConstantRuleElement =>
+        constRuleElement.planElement(Set(), var2reg)
+      case latMapRuleElement : LatmapRuleElement =>
+        latMapRuleElement.planElement(Set(), var2reg, Some(latmap.Input))
+    }
+    // create new InputRuleElement which just reads all facts from input latmap to do semi-naive evaluation
+
     boundVars ++= initBodyRule.variables
     var curPlanElement = initPlanElement
-    println(curPlanElement)
 
     // Step 3: Greedily add the lowest cost PlanElement to the plan
     val remaining = mutable.Set(rule.bodyElements:_*) - initBodyRule
@@ -42,16 +55,19 @@ class Planner {
           best = elem
         }
       }
-      curPlanElement.next = best.planElement(boundVars.toSet, var2reg)
+      // add new parameter to planElement() for indexCreation
+      curPlanElement.next = best.planElement(boundVars.toSet, var2reg, Some(True))
+      boundVars ++= best.variables
       curPlanElement = curPlanElement.next
-      println(curPlanElement)
       remaining.remove(best)
     }
+    println("\n")
 
     // Step 4: Add a final PlanElement that writes the result to the LatMap
-    curPlanElement.next = rule.headElement.writeToLatMap(var2reg)
+    val write = rule.headElement.writeToLatMap(var2reg)
+    curPlanElement.next = write
 
-    Plan(initPlanElement)
+    Plan(initPlanElement, rule)
   }
 
   def allocateVariables(rule: Rule): mutable.Map[Variable, Int] = {

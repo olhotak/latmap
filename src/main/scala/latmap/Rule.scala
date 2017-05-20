@@ -27,21 +27,23 @@ trait RuleElement {
     * will make all variables in the `variables` set bound. regAlloc is the mapping of variables
     * to registers in the evaluation context.
     */
-  def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement
+  def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latMap : Option[LatMapType] = None): PlanElement
 
-  /** Produces a WriteToLatMap PlanElement for when this rule element is the head of a rule.
+  /** Produces 2 WriteToLatMap PlanElements for when this rule element is the head of a rule
     */
   def writeToLatMap(regAlloc: Variable=>Int): PlanElement = {
     throw new Exception("Used non-head RuleElement in the head position")
   }
+
 }
 
 /**
   * RuleElement for a rule involving a single lattice element. e.g. Dist(a, b, d)
-  * @param latmap The LatMap of the lattice element.
+  * @param _latmapGroup The LatMapGroup of the lattice element.
   * @param vars The variables in the body of the rule.
   */
-class LatmapRuleElement(latmap: LatMap[_ <: Lattice], vars: Seq[Variable]) extends RuleElement {
+class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRule : Boolean) extends RuleElement {
+  val latmapGroup = _latmapGroup
   private val keyVars = vars.filter(_.isInstanceOf[KeyVariable])
   private val latVars = vars.filter(_.isInstanceOf[LatVariable])
   assert(latVars.size == 1)
@@ -51,28 +53,91 @@ class LatmapRuleElement(latmap: LatMap[_ <: Lattice], vars: Seq[Variable]) exten
   override def costEstimate(boundVars: Set[Variable]): Int = {
     0 // TODO: good cost estimate
   }
-  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
-    IndexScan(
-      //latmap.selectIndex(vars.zipWithIndex.collect { case (e, i) if boundVars.contains(e) => i }.toSet),
-      latmap.selectIndex(boundVars.map(vars.indexOf(_)).filter(_ >= 0)),
-      mergeLat = false,
-      inputRegs = keyVars.map(regAlloc).toArray,
-      outputRegs = keyVars.map(regAlloc).toArray,
-      outputLatReg = regAlloc(latVar)
-    )
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = Some(True)): PlanElement = {
+    latmapType match {
+      case Some(latmap.Input) =>
+        InputPlanElement(keyVars.map(regAlloc).toArray, regAlloc(latVar), _latmapGroup)
+      case _ =>
+        /*
+        if .selectIndex == NaiveIndex and we want to create our own index
+          make a better index
+          call Index scan with better index
+         */
+        IndexScan(
+          //latmap.selectIndex(vars.zipWithIndex.collect { case (e, i) if boundVars.contains(e) => i }.toSet),
+          latmapGroup.get(latmapType.get).selectIndex(boundVars.filter(keyVars.contains(_)).map(vars.indexOf(_)).filter(_ >= 0)),
+          mergeLat = false,
+          inputRegs = keyVars.map(regAlloc).toArray,
+          outputRegs = keyVars.map(regAlloc).toArray,
+          outputLatReg = regAlloc(latVar)
+        )
+    }
   }
   override def writeToLatMap(regAlloc: Variable=>Int): PlanElement = {
-    WriteToLatMap(
-      keyVars.map(regAlloc).toArray,
-      regAlloc(latVar),
-      latmap
-    )
+      WriteToLatMap(
+        keyVars.map(regAlloc).toArray,
+        regAlloc(latVar),
+        latmapGroup,
+        constRule
+      )
   }
+
 }
 
+
+/**
+  * RuleElement for key constants
+  * @param keyVar The variable in the body of the rule.
+  * @param const value of keyVar
+  */
+class KeyConstantRuleElement(keyVar: Variable, const : Any) extends RuleElement {
+
+  override def variables: Seq[Variable] = Seq(keyVar)
+  override def costEstimate(boundVars: Set[Variable]): Int = {
+    0 // TODO: good cost estimate
+  }
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
+    if (boundVars.contains(keyVar))
+      KeyConstantFilter(
+       regAlloc(keyVar),
+        const
+      )
+    else
+      KeyConstantEval(
+        regAlloc(keyVar),
+        const
+      )
+  }
+
+}
+
+class LatConstantRuleElement(latVar: Variable, const : Any, lattice : Lattice) extends RuleElement {
+
+  override def variables: Seq[Variable] = Seq(latVar)
+  override def costEstimate(boundVars: Set[Variable]): Int = {
+    0 // TODO: good cost estimate
+  }
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
+    // TODO: split up, using boundvars
+    if (boundVars.contains(latVar))
+      LatConstantFilter(
+        regAlloc(latVar),
+        const,
+        lattice
+      )
+    else
+      LatConstantEval(
+        regAlloc(latVar),
+        const,
+        lattice
+      )
+  }
+
+}
 /**
   * RuleElement for a rule representing a relation.
   */
+/*
 class RelationRuleElement(latmap: LatMap[_], vars: Seq[Variable]) extends RuleElement {
   assert(vars.forall(_.isInstanceOf[KeyVariable]))
 
@@ -87,11 +152,14 @@ class RelationRuleElement(latmap: LatMap[_], vars: Seq[Variable]) extends RuleEl
       boundVars.map(regAlloc).toArray
     )
   }
+
 }
+*/
 
 /**
   * RuleElement for a transfer function.
   */
+/*
 class TransferFnRuleElement(function: Array[Any] => Any, vars: Seq[Variable], outputVar: Variable)
   extends RuleElement {
   override def variables: Seq[Variable] = vars :+ outputVar
@@ -102,3 +170,4 @@ class TransferFnRuleElement(function: Array[Any] => Any, vars: Seq[Variable], ou
     TransferFnArray(vars.map(regAlloc).toArray, regAlloc(outputVar), function)
   }
 }
+*/
