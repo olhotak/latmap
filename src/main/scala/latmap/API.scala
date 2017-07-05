@@ -1,30 +1,31 @@
 package latmap
 
 trait API {
-  trait APIBodyElem
+  type Constant <: Term
+  type Variable <: Term with APIVariable
   type BodyElem <: APIBodyElem
+  type Atom <: BodyElem with APIAtom
+  type Const <: BodyElem
+  type Relation <: APIRelation
 
-  trait APIVariable {
+  trait Term
+  trait APIVariable extends Term {
     def :=(constant: Any): Const
   }
-  type Variable <: APIVariable
   def variable(): Variable
 
   trait APIRelation {
-    def apply(vars: Variable*): Atom
+    def apply(terms: Term*): Atom
   }
-  type Relation <: APIRelation
   def relation(arity: Int, lattice: Lattice): Relation
   def relation(arity: Int): Relation
 
+  trait APIBodyElem
   trait APIAtom extends APIBodyElem {
     def :-(body: BodyElem*): Unit
   }
-  type Atom <: APIAtom with BodyElem
 
-  type Const <: BodyElem
-
-  type Rule
+  implicit def anyConst(a: Any): Constant
 
   def solve(): Unit
 }

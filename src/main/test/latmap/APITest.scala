@@ -10,9 +10,11 @@ object APITest extends App {
     val z = variable()
     val dist = relation(2)
     dist(x, z) :- (dist(x, y), dist(y, z))
-    dist(x, y) :- (x := 1, y := 2)
-    dist(x, y) :- (x := 2, y := 3)
+    dist(1, 2) :- ()
+    dist(2, 3) :- ()
   }
+
+  println(p.asInstanceOf[APIImpl].program)
 
   p.solve()
 }
