@@ -18,6 +18,12 @@ class ProgramImpl extends Program {
   case class Const(variable: Variable, constant: Any) extends ProgConst with BodyElem {
     override def toString = variable + " := " + constant
   }
+  case class Filter(function: AnyRef, arguments: Seq[Variable]) extends ProgFilter with BodyElem {
+    override def toString = function + arguments.mkString("(", ", ", ")")
+  }
+  case class Transfer(result: Variable, function: AnyRef, arguments: Seq[Variable]) extends ProgTransfer with BodyElem {
+    override def toString = result + " := " + function + arguments.mkString("(", ", ", ")")
+  }
 
   val rules = mutable.ArrayBuffer[Rule]()
   override def toString = rules.mkString("\n")
@@ -52,7 +58,9 @@ class APIImpl extends API {
     new Relation(arity, BoolLattice)
   }
 
-  trait BodyElem extends APIBodyElem
+  trait BodyElem extends APIBodyElem {
+    def convert(termToVar: Term=>program.Variable): program.BodyElem
+  }
 
   def constantAtoms(atoms: Seq[BodyElem]): Seq[Const] = {
     val terms = atoms.flatMap(_ match {
@@ -66,35 +74,55 @@ class APIImpl extends API {
   }
 
   case class Atom(latMap: LatMap[_ <: Lattice], keyTerms: Seq[Term], latTerm: Term) extends BodyElem with APIAtom {
+    override def convert(termToVar: (Term) => program.Variable): program.Atom =
+      program.Atom(latMap, keyTerms map termToVar, termToVar(latTerm))
+
     def :-(atoms: BodyElem*): Unit = {
       val constVars = mutable.Map[Any, Variable]()
 
-      def convertTerm(term: Term): program.Variable = {
-        term match {
-          case Variable(id) => program.Variable(id)
-          case Constant(c) => convertTerm(constVars.getOrElseUpdate(c, variable()))
-        }
-      }
-
-      def convertAtom(atom: Atom): program.Atom =
-        program.Atom(atom.latMap, atom.keyTerms map convertTerm, convertTerm(atom.latTerm))
-
-      def convertBodyElem(elem: BodyElem): program.BodyElem = elem match {
-        case atom: Atom => convertAtom(atom)
-        case Const(v, c) => program.Const(convertTerm(v), c)
+      def convertTerm(term: Term): program.Variable = term match {
+        case Variable(id) => program.Variable(id)
+        case Constant(c) => convertTerm(constVars.getOrElseUpdate(c, variable()))
       }
 
       def constants: Seq[program.BodyElem] = constVars.map{case (c, v) => program.Const(convertTerm(v), c)}.toSeq
 
-      program.rules += program.Rule(convertAtom(this), (atoms map convertBodyElem) ++ constants)
+      program.rules += program.Rule(this.convert(convertTerm),
+        (atoms map {atom => atom.convert(convertTerm)}) ++ constants)
     }
   }
 
-  case class Const(variable: Term, constant: Any) extends BodyElem
+  case class Const(variable: Term, constant: Any) extends BodyElem {
+    override def convert(termToVar: (Term) => program.Variable): program.Const =
+      program.Const(termToVar(variable), constant)
+  }
 
   case class Constant(constant: Any) extends Term
 
   override implicit def anyConst(c: Any): Constant = Constant(c)
+
+  case class Filter(function: AnyRef, arguments: Seq[Term]) extends BodyElem {
+    override def convert(termToVar: (Term) => program.Variable): program.Filter =
+      program.Filter(function, arguments map termToVar)
+  }
+  def F(f: Function0[Boolean]): BodyElem = Filter(f, Seq())
+  def F[T1](f: Function1[T1, Boolean], t1: Term): BodyElem = Filter(f, Seq(t1))
+  def F[T1,T2](f: Function2[T1, T2, Boolean], t1: Term, t2: Term): BodyElem = Filter(f, Seq(t1, t2))
+  def F[T1,T2,T3](f: Function3[T1, T2, T3, Boolean], t1: Term, t2: Term, t3: Term): BodyElem = Filter(f, Seq(t1, t2, t3))
+  def F[T1,T2,T3,T4](f: Function4[T1, T2, T3, T4, Boolean], t1: Term, t2: Term, t3: Term, t4: Term): BodyElem = Filter(f, Seq(t1, t2, t3, t4))
+  def F[T1,T2,T3,T4,T5](f: Function5[T1, T2, T3, T4, T5, Boolean], t1: Term, t2: Term, t3: Term, t4: Term, t5: Term): BodyElem = Filter(f, Seq(t1, t2, t3, t4, t5))
+
+
+  case class Transfer(result: Variable, function: AnyRef, arguments: Seq[Term]) extends BodyElem {
+    override def convert(termToVar: (Term) => program.Variable): program.Transfer =
+      program.Transfer(termToVar(result), function, arguments map termToVar)
+  }
+  def T[R](r: Variable, f: Function0[R]): BodyElem = Transfer(r, f, Seq())
+  def T[T1,R](r: Variable, f: Function1[T1, R], t1: Term): BodyElem = Transfer(r, f, Seq(t1))
+  def T[T1,T2,R](r: Variable, f: Function2[T1, T2, R], t1: Term, t2: Term): BodyElem = Transfer(r, f, Seq(t1, t2))
+  def T[T1,T2,T3,R](r: Variable, f: Function3[T1, T2, T3, R], t1: Term, t2: Term, t3: Term): BodyElem = Transfer(r, f, Seq(t1, t2, t3))
+  def T[T1,T2,T3,T4,R](r: Variable, f: Function4[T1, T2, T3, T4, R], t1: Term, t2: Term, t3: Term, t4: Term): BodyElem = Transfer(r, f, Seq(t1, t2, t3, t4))
+  def T[T1,T2,T3,T4,T5,R](r: Variable, f: Function5[T1, T2, T3, T4, T5, R], t1: Term, t2: Term, t3: Term, t4: Term, t5: Term): BodyElem = Transfer(r, f, Seq(t1, t2, t3, t4, t5))
 
   def solve() = new Solver().solve(program)
 }

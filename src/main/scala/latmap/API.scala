@@ -27,6 +27,20 @@ trait API {
 
   implicit def anyConst(a: Any): Constant
 
+  def F(f: Function0[Boolean]): BodyElem
+  def F[T1](f: Function1[T1, Boolean], t1: Term): BodyElem
+  def F[T1,T2](f: Function2[T1, T2, Boolean], t1: Term, t2: Term): BodyElem
+  def F[T1,T2,T3](f: Function3[T1, T2, T3, Boolean], t1: Term, t2: Term, t3: Term): BodyElem
+  def F[T1,T2,T3,T4](f: Function4[T1, T2, T3, T4, Boolean], t1: Term, t2: Term, t3: Term, t4: Term): BodyElem
+  def F[T1,T2,T3,T4,T5](f: Function5[T1, T2, T3, T4, T5, Boolean], t1: Term, t2: Term, t3: Term, t4: Term, t5: Term): BodyElem
+
+  def T[R](r: Variable, f: Function0[R]): BodyElem
+  def T[T1,R](r: Variable, f: Function1[T1, R], t1: Term): BodyElem
+  def T[T1,T2,R](r: Variable, f: Function2[T1, T2, R], t1: Term, t2: Term): BodyElem
+  def T[T1,T2,T3,R](r: Variable, f: Function3[T1, T2, T3, R], t1: Term, t2: Term, t3: Term): BodyElem
+  def T[T1,T2,T3,T4,R](r: Variable, f: Function4[T1, T2, T3, T4, R], t1: Term, t2: Term, t3: Term, t4: Term): BodyElem
+  def T[T1,T2,T3,T4,T5,R](r: Variable, f: Function5[T1, T2, T3, T4, T5, R], t1: Term, t2: Term, t3: Term, t4: Term, t5: Term): BodyElem
+
   def solve(): Unit
 }
 
