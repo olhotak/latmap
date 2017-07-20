@@ -2,7 +2,6 @@ package latmap
 
 class Solver {
   def solve(program: Program) = {
-    // TODO: create a plan for each pair (Rule, Atom position in the rule)
     val planner = new Planner()
     var keyVarMap = scala.collection.mutable.Map[program.Variable, KeyVariable]()
     var latVarMap = scala.collection.mutable.Map[program.Variable, LatVariable]()
