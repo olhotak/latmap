@@ -23,6 +23,13 @@ class Solver {
         latId += 1
       }
     }
+    def convertVariable(v : program.Variable): Variable = {
+      if (keyVarMap.contains(v))
+        keyVarMap(v)
+      else
+        latVarMap(v)
+    }
+    def convertVariables(v : Seq[program.Variable]) : Seq[Variable] = v.map(convertVariable)
 
     // map all program Variables to Latmap Variables
     program.rules.foreach((rule) => {
@@ -37,12 +44,12 @@ class Solver {
       // body elements
       rule.body.foreach((bodyElem) => {
         bodyElem match {
-          case s: program.Const =>
           case s: program.Atom =>
             s.keyVars.foreach((v) =>
                 generateKeyVariable(v)
             )
             generateLatVariable(s.latVar)
+          case _ =>
         }
       })
     })
@@ -72,6 +79,12 @@ class Solver {
                   atom.keyVars.map((pv) => keyVarMap(pv)) :+ latVarMap(atom.latVar),
                   false
                 )
+              case filter: program.Filter =>
+                new FilterFnRuleElement(filter.function,
+                  filter.arguments.map((v) => if (keyVarMap.contains(v)) keyVarMap(v) else latVarMap(v)))
+              case transfer: program.Transfer =>
+                new TransferFnRuleElement(transfer.function, convertVariables(transfer.arguments), convertVariable(transfer.result))
+
             }
           ).toList
         )

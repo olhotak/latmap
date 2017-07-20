@@ -155,19 +155,26 @@ class RelationRuleElement(latmap: LatMap[_], vars: Seq[Variable]) extends RuleEl
 
 }
 */
-
+class FilterFnRuleElement(function: AnyRef, vars: Seq[Variable])
+  extends RuleElement {
+  override def variables: Seq[Variable] = vars
+  override def costEstimate(boundVars: Set[Variable]): Int = {
+    0
+  }
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
+    FilterFn(vars.map(regAlloc).toArray, function)
+  }
+}
 /**
   * RuleElement for a transfer function.
   */
-/*
-class TransferFnRuleElement(function: Array[Any] => Any, vars: Seq[Variable], outputVar: Variable)
+class TransferFnRuleElement(function: AnyRef, vars: Seq[Variable], outputVar: Variable)
   extends RuleElement {
   override def variables: Seq[Variable] = vars :+ outputVar
   override def costEstimate(boundVars: Set[Variable]): Int = {
     if (boundVars.subsetOf(vars.toSet)) 0 else Int.MaxValue
   }
-  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
-    TransferFnArray(vars.map(regAlloc).toArray, regAlloc(outputVar), function)
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType]): PlanElement = {
+    TransferFn(vars.map(regAlloc).toArray, regAlloc(outputVar), function)
   }
 }
-*/

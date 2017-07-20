@@ -35,6 +35,10 @@ class Planner {
         latConstRuleElement.planElement(Set(), var2reg)
       case constRuleElement : KeyConstantRuleElement =>
         constRuleElement.planElement(Set(), var2reg)
+      case f : FilterFnRuleElement =>
+        throw new Exception("FilterFnRuleElement should never be the first RuleElement")
+      case t : TransferFnRuleElement =>
+        t.planElement(Set(), var2reg)
       case latMapRuleElement : LatmapRuleElement =>
         latMapRuleElement.planElement(Set(), var2reg, Some(latmap.Input))
     }

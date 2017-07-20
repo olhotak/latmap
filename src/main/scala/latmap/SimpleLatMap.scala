@@ -46,8 +46,12 @@ class SimpleLatMap[T <: Lattice](val lattice: T, val arity : Int) extends LatMap
       case Some(old) =>
         if (elem != old){
           val newLatElem = lattice.lub(elem, get(keys))
-          rows.put(Arrays.copyOf(keys, keys.length), newLatElem)
-          Some(newLatElem)
+          if (newLatElem == old)
+            None
+          else {
+            rows.put(Arrays.copyOf(keys, keys.length), newLatElem)
+            Some(newLatElem)
+          }
         }
         else
           None

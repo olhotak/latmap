@@ -2,8 +2,7 @@ package latmap
 
 import com.sun.xml.internal.bind.v2.schemagen.xmlschema.TopLevelAttribute
 
-/** Boolean lattice.
-  * For using LatMap with relations.
+/** Parity lattice.
   */
 object ParityLattice extends Lattice {
   //      Top

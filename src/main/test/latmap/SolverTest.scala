@@ -384,7 +384,7 @@ class SolverTest extends FunSuite {
       A(2) :- ()
       A(3) :- ()
       A(4) :- ()
-      def neq(x : Int, y : Int) : Boolean = x != y
+      def neq(x : Int, y : Int) : Boolean = x != y // TODO: expected answer doesn't match actual when ==
       B(x, y) :- (A(x), A(y), F(neq, x, y))
     }
 
@@ -446,7 +446,46 @@ class SolverTest extends FunSuite {
 
       val A = relation(1)
       def f() : Int = 42
-      // TODO: how to translate this one
+      val v = variable()
+      A(v) :- T(v, f)
+    }
+
+    println(p.asInstanceOf[APIImpl].program)
+
+    p.solve()
+  }
+  test("Transfer02"){
+    val p = API()
+
+    {
+      import p._
+
+      val A = relation(2)
+      def f() : Int = 42
+      def g(x : Int): Int = 21 + x
+      val v = variable()
+      val w = variable()
+      A(v, w) :- (T(v, f), w := 21, T(w, g, w))
+    }
+
+    println(p.asInstanceOf[APIImpl].program)
+
+    p.solve()
+  }
+  test("Transfer03"){
+    val p = API()
+
+    {
+      import p._
+
+      val A = relation(3)
+      def f() : Int = 42
+      def g(x : Int): Int = 21 + x
+      def h(x : Int, y : Int): Int = f() + g(x) + y
+      val v = variable()
+      val w = variable()
+      val x = variable()
+      A(v, w, x) :- (T(v, f), w := 21, T(w, g, w), x := 11, T(x, h, w, x)) // TODO: Doesn't work
     }
 
     println(p.asInstanceOf[APIImpl].program)

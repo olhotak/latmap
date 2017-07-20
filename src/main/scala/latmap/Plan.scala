@@ -198,6 +198,7 @@ case class InputPlanElement(outputRegs: Array[Int],
     }
   }
 }
+
 /**
   * PlanElement that produces a new value by calling the provided function
   * on input from the input registers.
@@ -206,52 +207,55 @@ case class InputPlanElement(outputRegs: Array[Int],
   * @param outputReg
   * @param function
   */
-case class TransferFnArray(inputRegs: Array[Int],
-                           outputReg: Int,
-                           function: Array[Any] => Any) extends PlanElement {
-  def go(evalContext: EvalContext): Unit = {
-    val input = new Array[Any](inputRegs.length)
-    var i = 0
-
-    i = 0
-    while (i < inputRegs.length) {
-      input(i) = evalContext.readFromReg(inputRegs(i))
-      i += 1
-    }
-
-    val output = function(input)
-    evalContext.writeToReg(outputReg, output)
-    next.go(evalContext)
-  }
-}
-
-case class TransferFn1(inputReg: Int,
-                       outputReg: Int,
-                       function: Any => Any) extends PlanElement {
-  def go(evalContext: EvalContext): Unit = {
-    val input =
-      if (inputReg >= 1000)
-        evalContext.latRegs(inputReg - 1000)
-      else
-        evalContext.translator.fromInt(evalContext.keyRegs(inputReg))
-
-    val output = function(input)
-    if (outputReg >= 1000)
-      evalContext.latRegs(outputReg - 1000) = output
-    else
-      evalContext.keyRegs(outputReg) = evalContext.translator.toInt(output)
-  }
-}
-case class FilterFn1(inputReg: Int,
-                     function: Any => Boolean) extends PlanElement {
+case class TransferFn(inputRegs: Array[Int],
+                     outputReg: Int,
+                    function: AnyRef) extends PlanElement {
   def go(evalContext: EvalContext) = {
-    if ((inputReg >= 1000 && function(evalContext.latRegs(inputReg - 1000))) ||
-        function(evalContext.translator.fromInt(evalContext.keyRegs(inputReg)))) {
+    val args = inputRegs.map((reg) => {
+      if (reg >= 1000)
+        evalContext.latRegs(reg - 1000)
+      else
+        evalContext.translator.fromInt(evalContext.keyRegs(reg))
+    })
+    val result : Any = args.size match {
+      case 0 => function.asInstanceOf[Function0[Any]]()
+      case 1 => function.asInstanceOf[Function1[Any, Any]](args(0))
+      case 2 => function.asInstanceOf[Function2[Any, Any, Any]](args(0), args(1))
+      case 3 => function.asInstanceOf[Function3[Any, Any, Any, Any]](args(0), args(1), args(2))
+      case 4 => function.asInstanceOf[Function4[Any, Any, Any, Any, Any]](args(0), args(1), args(2), args(3))
+      case 5 => function.asInstanceOf[Function5[Any, Any, Any, Any, Any, Any]](args(0), args(1), args(2), args(3), args(4))
+    }
+    if (outputReg >= 1000)
+      evalContext.latRegs(outputReg - 1000) = result
+    else
+      evalContext.keyRegs(outputReg) = evalContext.translator.toInt(result)
+    next.go(evalContext)
+
+  }
+}
+case class FilterFn(inputRegs: Array[Int],
+                     function: AnyRef) extends PlanElement {
+  def go(evalContext: EvalContext) = {
+    val args = inputRegs.map((reg) => {
+      if (reg >= 1000)
+        evalContext.latRegs(reg - 1000)
+      else
+        evalContext.translator.fromInt(evalContext.keyRegs(reg))
+    })
+    val result : Boolean = args.size match {
+      case 0 => function.asInstanceOf[Function0[Boolean]]()
+      case 1 => function.asInstanceOf[Function1[Any, Boolean]](args(0))
+      case 2 => function.asInstanceOf[Function2[Any, Any, Boolean]](args(0), args(1))
+      case 3 => function.asInstanceOf[Function3[Any, Any, Any, Boolean]](args(0), args(1), args(2))
+      case 4 => function.asInstanceOf[Function4[Any, Any, Any, Any, Boolean]](args(0), args(1), args(2), args(3))
+      case 5 => function.asInstanceOf[Function5[Any, Any, Any, Any, Any, Boolean]](args(0), args(1), args(2), args(3), args(4))
+    }
+    if (result){
       next.go(evalContext)
     }
+
   }
 }
-
 /**
   * Writes a (key, value) pair specified by (inputRegs, inputLatReg) to
   * the provided LatMap.
@@ -269,12 +273,12 @@ case class WriteToLatMap(inputRegs: Array[Int],
 
     putVal match {
       case None =>
-        if (constRule) {
+        /*if (constRule) {
           outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)),
           evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem])
           println(s"Writing ${inputRegs.map((i) => evalContext.translator.fromInt(evalContext.keyRegs(i)))mkString(" ")} ->" +
             s" ${evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem]}" + " to :" + outputLatMap)
-        }
+        }*/
       case Some(elem) =>
         outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)), elem.asInstanceOf[outputLatMap.lattice.Elem])
         println(s"Writing ${inputRegs.map((i) => evalContext.translator.fromInt(evalContext.keyRegs(i)))mkString(" ")} ->" +
