@@ -465,7 +465,8 @@ class SolverTest extends FunSuite {
       def g(x : Int): Int = 21 + x
       val v = variable()
       val w = variable()
-      A(v, w) :- (T(v, f), w := 21, T(w, g, w))
+      val h = variable()
+      A(v, w) :- (T(v, f), h := 21, T(w, g, h))
     }
 
     println(p.asInstanceOf[APIImpl].program)
@@ -485,7 +486,9 @@ class SolverTest extends FunSuite {
       val v = variable()
       val w = variable()
       val x = variable()
-      A(v, w, x) :- (T(v, f), w := 21, T(w, g, w), x := 11, T(x, h, w, x)) // TODO: Doesn't work
+      val y = variable()
+      val z = variable()
+      A(x, y, z) :- (T(x, f), T(y, g, w), T(z, h, v, w), v := 11, w := 21)
     }
 
     println(p.asInstanceOf[APIImpl].program)

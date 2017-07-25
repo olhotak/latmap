@@ -29,8 +29,7 @@ class Solver {
         latVarMap(v)
     }
     def convertVariables(v : Seq[program.Variable]) : Seq[Variable] = v.map(convertVariable)
-
-    // map all program Variables to Latmap Variables
+    // pass 1 : generate latmap.Variables for head elements and body atom elements
     program.rules.foreach((rule) => {
 
       // head elements
@@ -48,6 +47,18 @@ class Solver {
                 generateKeyVariable(v)
             )
             generateLatVariable(s.latVar)
+          case _ =>
+        }
+      })
+    })
+
+    // pass 2 : generate key variables for all non-lat constants
+    program.rules.foreach((rule) => {
+      rule.body.foreach((bodyElem) => {
+        bodyElem match {
+          case s: program.Const =>
+            if (!latVarMap.contains(s.variable))
+              generateKeyVariable(s.variable)
           case _ =>
         }
       })
