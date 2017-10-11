@@ -6,7 +6,7 @@ object APITest2 extends App {
   {
     import p._
     val x = variable()
-    val l = variable()
+    val l = latVariable(ParityLattice)
     val one = variable()
     val two = variable()
     val three = variable()

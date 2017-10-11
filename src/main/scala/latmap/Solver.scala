@@ -3,30 +3,28 @@ package latmap
 class Solver {
   def solve(program: Program) = {
     val planner = new Planner()
-    var keyVarMap = scala.collection.mutable.Map[program.Variable, KeyVariable]()
-    var latVarMap = scala.collection.mutable.Map[program.Variable, LatVariable]()
+    var keyVarMap = scala.collection.mutable.Map[program.KeyVariable, KeyVariable]()
+    var latVarMap = scala.collection.mutable.Map[program.LatVariable, LatVariable]()
     var latMapMap = scala.collection.mutable.Map[LatMap[_ <: Lattice], LatMapGroup]()
     var constVariables = scala.collection.mutable.ListBuffer.empty[program.Const]
 
     var keyId : Int = 0
     var latId : Int = 0
-    def generateKeyVariable(v : program.Variable): Unit = {
+    def generateKeyVariable(v : program.KeyVariable): Unit = {
       if (!keyVarMap.contains(v)) {
         keyVarMap(v) = KeyVariable("key: " + keyId)
         keyId += 1
       }
     }
-    def generateLatVariable(v : program.Variable): Unit = {
+    def generateLatVariable(v : program.LatVariable): Unit = {
       if (!latVarMap.contains(v)) {
-        latVarMap(v) = LatVariable("lat: " + latId)
+        latVarMap(v) = LatVariable("lat: " + latId, v.lattice.get)
         latId += 1
       }
     }
-    def convertVariable(v : program.Variable): Variable = {
-      if (keyVarMap.contains(v))
-        keyVarMap(v)
-      else
-        latVarMap(v)
+    def convertVariable(v : program.Variable): Variable = v match {
+      case k: program.KeyVariable if keyVarMap.contains(k) => keyVarMap(k)
+      case l: program.LatVariable if latVarMap.contains(l) => latVarMap(l)
     }
     def convertVariables(v : Seq[program.Variable]) : Seq[Variable] = v.map(convertVariable)
     // pass 1 : generate latmap.Variables for head elements and body atom elements
@@ -56,9 +54,11 @@ class Solver {
     program.rules.foreach((rule) => {
       rule.body.foreach((bodyElem) => {
         bodyElem match {
-          case s: program.Const =>
-            if (!latVarMap.contains(s.variable))
-              generateKeyVariable(s.variable)
+          case s: program.Const => s.variable match {
+            case k: program.Variable if !latVarMap.contains(k.asInstanceOf[program.LatVariable]) =>
+              generateKeyVariable(k.asInstanceOf[program.KeyVariable])
+            case _ =>
+          }
           case _ =>
         }
       })
@@ -75,14 +75,17 @@ class Solver {
           ),
           rule.body.map((ruleElement) =>
             ruleElement match {
-              case const: program.Const =>
-                if (keyVarMap.contains(const.variable))
-                  new KeyConstantRuleElement(
-                    keyVarMap(const.variable),
-                    const.constant
-                  )
-                else
-                  new LatConstantRuleElement(latVarMap(const.variable), const.constant, rule.head.latMap.lattice)
+              case const: program.Const => const.variable match {
+                case k: program.KeyVariable if keyVarMap.contains(k) => new KeyConstantRuleElement(
+                  keyVarMap(k),
+                  const.constant
+                )
+                case l: program.LatVariable if latVarMap.contains(l) => new LatConstantRuleElement(
+                  latVarMap(l),
+                  const.constant,
+                  l.lattice.get
+                )
+              }
               case atom: program.Atom =>
                 new LatmapRuleElement(
                   latMapMap.getOrElseUpdate(atom.latMap, new LatMapGroup(atom.latMap)),
@@ -91,7 +94,11 @@ class Solver {
                 )
               case filter: program.Filter =>
                 new FilterFnRuleElement(filter.function,
-                  filter.arguments.map((v) => if (keyVarMap.contains(v)) keyVarMap(v) else latVarMap(v)))
+                  filter.arguments.map {
+                    case k: program.KeyVariable if keyVarMap.contains(k) => keyVarMap(k)
+                    case l: program.LatVariable if latVarMap.contains(l) => latVarMap(l)
+                  }
+                )
               case transfer: program.Transfer =>
                 new TransferFnRuleElement(transfer.function, convertVariables(transfer.arguments), convertVariable(transfer.result))
 
