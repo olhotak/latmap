@@ -2,7 +2,7 @@ package latmap
 
 trait Variable { val name: AnyRef }
 case class KeyVariable(name: AnyRef) extends Variable
-case class LatVariable(name: AnyRef) extends Variable
+case class LatVariable(name: AnyRef, lattice: Lattice) extends Variable
 
 case class Rule(headElement: RuleElement,
                 bodyElements: List[RuleElement]) {
@@ -111,7 +111,7 @@ class KeyConstantRuleElement(keyVar: Variable, const : Any) extends RuleElement 
 
 }
 
-class LatConstantRuleElement(latVar: Variable, const : Any, lattice : Lattice) extends RuleElement {
+class LatConstantRuleElement(latVar: LatVariable, const : Any, lattice : Lattice) extends RuleElement {
 
   override def variables: Seq[Variable] = Seq(latVar)
   override def costEstimate(boundVars: Set[Variable]): Int = {
@@ -123,13 +123,13 @@ class LatConstantRuleElement(latVar: Variable, const : Any, lattice : Lattice) e
       LatConstantFilter(
         regAlloc(latVar),
         const,
-        lattice
+        latVar.lattice
       )
     else
       LatConstantEval(
         regAlloc(latVar),
         const,
-        lattice
+        latVar.lattice
       )
   }
 

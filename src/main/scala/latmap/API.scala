@@ -3,6 +3,8 @@ package latmap
 trait API {
   type Constant <: Term
   type Variable <: Term with APIVariable
+  type KeyVariable <: Variable
+  type LatVariable <: Variable
   type BodyElem <: APIBodyElem
   type Atom <: BodyElem with APIAtom
   type Const <: BodyElem
@@ -12,7 +14,8 @@ trait API {
   trait APIVariable extends Term {
     def :=(constant: Any): Const
   }
-  def variable(): Variable
+  def variable(): KeyVariable
+  def latVariable(lattice: Lattice): LatVariable
 
   trait APIRelation {
     def apply(terms: Term*): Atom

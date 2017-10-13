@@ -1,5 +1,7 @@
+# Intellij specific settings
 target
 .idea
+project
 
 # Eclipse specific settings
 .project

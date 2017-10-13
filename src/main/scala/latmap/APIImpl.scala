@@ -8,11 +8,17 @@ class ProgramImpl extends Program {
   case class Rule(head: Atom, body: Seq[BodyElem]) extends ProgRule {
     override def toString = head + " :- " + body.mkString(", ")
   }
-  case class Variable(id: Int) extends ProgVariable {
+  abstract class Variable(id: Int) extends ProgVariable {
     override def toString = "v" + id
   }
+  case class KeyVariable(id: Int) extends Variable(id) {
+    override def lattice: Option[Lattice] = None
+  }
+  case class LatVariable(id: Int, lat: Lattice) extends Variable(id) {
+    override def lattice: Option[Lattice] = Some(lat)
+  }
   trait BodyElem extends ProgBodyElem
-  case class Atom(latMap: LatMap[_ <: Lattice], keyVars: Seq[Variable], latVar: Variable) extends ProgAtom with BodyElem {
+  case class Atom(latMap: LatMap[_ <: Lattice], keyVars: Seq[KeyVariable], latVar: LatVariable) extends ProgAtom with BodyElem {
     override def toString = latMap + keyVars.mkString("(", ", ", ")") + "[" + latVar + "]"
   }
   case class Const(variable: Variable, constant: Any) extends ProgConst with BodyElem {
@@ -32,14 +38,25 @@ class ProgramImpl extends Program {
 class APIImpl extends API {
   val program = new ProgramImpl
 
-  case class Variable(id: Int) extends APIVariable {
+  abstract class Variable(id: Int) extends APIVariable {
     def :=(constant: Any) = Const(this, constant)
   }
 
+  case class KeyVariable(id: Int) extends Variable(id) {
+  }
+
+  case class LatVariable(id: Int, lattice: Lattice) extends Variable(id) {
+  }
+
   var nextId = 0
-  def variable(): Variable = {
+  def variable(): KeyVariable = {
     nextId = nextId + 1
-    Variable(nextId)
+    KeyVariable(nextId)
+  }
+
+  def latVariable(lattice: Lattice): LatVariable = {
+    nextId = nextId + 1
+    LatVariable(nextId, lattice)
   }
 
   case class Relation(arity: Int, lattice: Lattice) extends APIRelation {
@@ -59,7 +76,7 @@ class APIImpl extends API {
   }
 
   trait BodyElem extends APIBodyElem {
-    def convert(termToVar: Term=>program.Variable): program.BodyElem
+    def convert(termToVar: (Term,Option[Lattice])=>program.Variable): program.BodyElem
   }
 
   def constantAtoms(atoms: Seq[BodyElem]): Seq[Const] = {
@@ -74,18 +91,24 @@ class APIImpl extends API {
   }
 
   case class Atom(latMap: LatMap[_ <: Lattice], keyTerms: Seq[Term], latTerm: Term) extends BodyElem with APIAtom {
-    override def convert(termToVar: (Term) => program.Variable): program.Atom =
-      program.Atom(latMap, keyTerms map termToVar, termToVar(latTerm))
+    override def convert(termToVar: (Term, Option[Lattice]) => program.Variable): program.Atom =
+      program.Atom(latMap,
+        (keyTerms map ((t) => termToVar(t, None))).map(_.asInstanceOf[program.KeyVariable]),
+        termToVar(latTerm, Some(latMap.lattice)).asInstanceOf[program.LatVariable])
 
     def :-(atoms: BodyElem*): Unit = {
       val constVars = mutable.Map[Any, Variable]()
 
-      def convertTerm(term: Term): program.Variable = term match {
-        case Variable(id) => program.Variable(id)
-        case Constant(c) => convertTerm(constVars.getOrElseUpdate(c, variable()))
+      def convertTerm(term: Term, constLattice: Option[Lattice]): program.Variable = term match {
+        case KeyVariable(id) => program.KeyVariable(id)
+        case LatVariable(id, lattice) => program.LatVariable(id, lattice)
+        case Constant(c) => constLattice match {
+          case None => convertTerm(constVars.getOrElseUpdate(c, variable()), None)
+          case Some(lattice) => convertTerm(constVars.getOrElseUpdate(c, latVariable(lattice)), None)
+        }
       }
 
-      def constants: Seq[program.BodyElem] = constVars.map{case (c, v) => program.Const(convertTerm(v), c)}.toSeq
+      def constants: Seq[program.BodyElem] = constVars.map{case (c, v) => program.Const(convertTerm(v, None), c)}.toSeq
 
       program.rules += program.Rule(this.convert(convertTerm),
         (atoms map {atom => atom.convert(convertTerm)}) ++ constants)
@@ -95,8 +118,8 @@ class APIImpl extends API {
   }
 
   case class Const(variable: Term, constant: Any) extends BodyElem {
-    override def convert(termToVar: (Term) => program.Variable): program.Const =
-      program.Const(termToVar(variable), constant)
+    override def convert(termToVar: (Term, Option[Lattice]) => program.Variable): program.Const =
+      program.Const(termToVar(variable, None), constant)
   }
 
   case class Constant(constant: Any) extends Term
@@ -104,8 +127,8 @@ class APIImpl extends API {
   override implicit def anyConst(c: Any): Constant = Constant(c)
 
   case class Filter(function: AnyRef, arguments: Seq[Term]) extends BodyElem {
-    override def convert(termToVar: (Term) => program.Variable): program.Filter =
-      program.Filter(function, arguments map termToVar)
+    override def convert(termToVar: (Term, Option[Lattice]) => program.Variable): program.Filter =
+      program.Filter(function, arguments map ((t) => termToVar(t, None)))
   }
   def F(f: Function0[Boolean]): BodyElem = Filter(f, Seq())
   def F[T1](f: Function1[T1, Boolean], t1: Term): BodyElem = Filter(f, Seq(t1))
@@ -116,8 +139,8 @@ class APIImpl extends API {
 
 
   case class Transfer(result: Variable, function: AnyRef, arguments: Seq[Term]) extends BodyElem {
-    override def convert(termToVar: (Term) => program.Variable): program.Transfer =
-      program.Transfer(termToVar(result), function, arguments map termToVar)
+    override def convert(termToVar: (Term, Option[Lattice]) => program.Variable): program.Transfer =
+      program.Transfer(termToVar(result, None), function, arguments map ((t) => termToVar(t, None)))
   }
   def T[R](r: Variable, f: Function0[R]): BodyElem = Transfer(r, f, Seq())
   def T[T1,R](r: Variable, f: Function1[T1, R], t1: Term): BodyElem = Transfer(r, f, Seq(t1))

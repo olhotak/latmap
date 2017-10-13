@@ -354,7 +354,7 @@ class SolverTest extends FunSuite {
 
     {
       import p._
-      val x = variable()
+      val x = latVariable(ParityLattice)
 
       val A = relation(1, ParityLattice)
 
