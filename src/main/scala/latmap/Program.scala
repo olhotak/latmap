@@ -1,9 +1,7 @@
 package latmap
 
 trait Program {
-  trait ProgVariable {
-    def lattice: Option[Lattice]
-  }
+  trait Variable
   trait ProgBodyElem
   trait ProgAtom extends ProgBodyElem {
     def latMap: LatMap[_ <: Lattice]
@@ -28,9 +26,11 @@ trait Program {
     def arguments: Seq[Variable]
   }
 
-  type Variable <: ProgVariable
-  type KeyVariable <: Variable
-  type LatVariable <: Variable
+  trait KeyVariable extends Variable
+  trait LatVariable extends Variable {
+    def lattice: Lattice
+  }
+
   type BodyElem <: ProgBodyElem
   type Atom <: ProgAtom
   type Const <: ProgConst

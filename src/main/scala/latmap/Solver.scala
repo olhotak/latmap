@@ -18,13 +18,13 @@ class Solver {
     }
     def generateLatVariable(v : program.LatVariable): Unit = {
       if (!latVarMap.contains(v)) {
-        latVarMap(v) = LatVariable("lat: " + latId, v.lattice.get)
+        latVarMap(v) = LatVariable("lat: " + latId, v.lattice)
         latId += 1
       }
     }
     def convertVariable(v : program.Variable): Variable = v match {
-      case k: program.KeyVariable if keyVarMap.contains(k) => keyVarMap(k)
-      case l: program.LatVariable if latVarMap.contains(l) => latVarMap(l)
+      case k: program.KeyVariable => keyVarMap(k)
+      case l: program.LatVariable => latVarMap(l)
     }
     def convertVariables(v : Seq[program.Variable]) : Seq[Variable] = v.map(convertVariable)
     // pass 1 : generate latmap.Variables for head elements and body atom elements
@@ -55,8 +55,7 @@ class Solver {
       rule.body.foreach((bodyElem) => {
         bodyElem match {
           case s: program.Const => s.variable match {
-            case k: program.Variable if !latVarMap.contains(k.asInstanceOf[program.LatVariable]) =>
-              generateKeyVariable(k.asInstanceOf[program.KeyVariable])
+            case k: program.KeyVariable => generateKeyVariable(k)
             case _ =>
           }
           case _ =>
@@ -76,14 +75,14 @@ class Solver {
           rule.body.map((ruleElement) =>
             ruleElement match {
               case const: program.Const => const.variable match {
-                case k: program.KeyVariable if keyVarMap.contains(k) => new KeyConstantRuleElement(
+                case k: program.KeyVariable => new KeyConstantRuleElement(
                   keyVarMap(k),
                   const.constant
                 )
-                case l: program.LatVariable if latVarMap.contains(l) => new LatConstantRuleElement(
+                case l: program.LatVariable => new LatConstantRuleElement(
                   latVarMap(l),
                   const.constant,
-                  l.lattice.get
+                  l.lattice
                 )
               }
               case atom: program.Atom =>
@@ -95,8 +94,8 @@ class Solver {
               case filter: program.Filter =>
                 new FilterFnRuleElement(filter.function,
                   filter.arguments.map {
-                    case k: program.KeyVariable if keyVarMap.contains(k) => keyVarMap(k)
-                    case l: program.LatVariable if latVarMap.contains(l) => latVarMap(l)
+                    case k: program.KeyVariable => keyVarMap(k)
+                    case l: program.LatVariable => latVarMap(l)
                   }
                 )
               case transfer: program.Transfer =>

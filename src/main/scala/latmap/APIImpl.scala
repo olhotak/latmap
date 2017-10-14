@@ -8,14 +8,12 @@ class ProgramImpl extends Program {
   case class Rule(head: Atom, body: Seq[BodyElem]) extends ProgRule {
     override def toString = head + " :- " + body.mkString(", ")
   }
-  abstract class Variable(id: Int) extends ProgVariable {
+  abstract class BaseVariable(id: Int) extends Variable {
     override def toString = "v" + id
   }
-  case class KeyVariable(id: Int) extends Variable(id) {
-    override def lattice: Option[Lattice] = None
+  case class KeyVariableImpl(id: Int) extends BaseVariable(id) with KeyVariable {
   }
-  case class LatVariable(id: Int, lat: Lattice) extends Variable(id) {
-    override def lattice: Option[Lattice] = Some(lat)
+  case class LatVariableImpl(id: Int, lattice: Lattice) extends BaseVariable(id) with LatVariable {
   }
   trait BodyElem extends ProgBodyElem
   case class Atom(latMap: LatMap[_ <: Lattice], keyVars: Seq[KeyVariable], latVar: LatVariable) extends ProgAtom with BodyElem {
@@ -100,8 +98,8 @@ class APIImpl extends API {
       val constVars = mutable.Map[Any, Variable]()
 
       def convertTerm(term: Term, constLattice: Option[Lattice]): program.Variable = term match {
-        case KeyVariable(id) => program.KeyVariable(id)
-        case LatVariable(id, lattice) => program.LatVariable(id, lattice)
+        case KeyVariable(id) => program.KeyVariableImpl(id)
+        case LatVariable(id, lattice) => program.LatVariableImpl(id, lattice)
         case Constant(c) => constLattice match {
           case None => convertTerm(constVars.getOrElseUpdate(c, variable()), None)
           case Some(lattice) => convertTerm(constVars.getOrElseUpdate(c, latVariable(lattice)), None)
