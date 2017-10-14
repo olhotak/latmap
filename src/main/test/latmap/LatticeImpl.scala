@@ -83,4 +83,36 @@ object TwoPointLattice extends Lattice {
   def top: Elem = Top
 }
 
+object SULattice extends Lattice {
+  sealed trait SUElem
+  case object Top extends SUElem
+  case class Single(str: String) extends SUElem
+  case object Bottom extends SUElem
+
+  type Elem = SUElem
+  def bottom: SUElem = Bottom
+  def top: SUElem = Top
+
+  def equ(e1: SUElem, e2: SUElem): Boolean = e1 == e2
+
+  def leq(e1: SUElem, e2: SUElem): Boolean = (e1,e2) match {
+    case (Bottom, _) => true
+    case (_, Top) => true
+    case (Single(s1), Single(s2)) => s1 == s2
+    case _ => false
+  }
+  def lub(e1: SUElem, e2: SUElem): SUElem = (e1,e2) match {
+    case (Bottom, _) => e2
+    case (_, Bottom) => e1
+    case (Single(s1), Single(s2)) => if (s1 == s2) Single(s1) else Top
+    case _ => Top
+  }
+  def glb(e1: SUElem, e2: SUElem): SUElem = (e1,e2) match {
+    case (Top, _) => e2
+    case (_, Top) => e1
+    case (Single(s1), Single(s2)) => if (s1 == s2) Single(s1) else Bottom
+    case _ => Bottom
+  }
+}
+
 
