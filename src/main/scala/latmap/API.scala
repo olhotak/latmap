@@ -45,6 +45,8 @@ trait API {
   def T[T1,T2,T3,T4,T5,R](r: Variable, f: Function5[T1, T2, T3, T4, T5, R], t1: Term, t2: Term, t3: Term, t4: Term, t5: Term): BodyElem
 
   def solve(): Unit
+
+  def loadFactsFromFile(filename: String, relations: Map[String, Relation]): Unit
 }
 
 object API {

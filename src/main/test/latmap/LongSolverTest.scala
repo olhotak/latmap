@@ -81,28 +81,45 @@ class LongSolverTest extends FunSuite {
       Kill(l, SULattice.Top) :- Phi(l)
 
       // Example facts
-      AddrOf("p","a") :- ()
-      AddrOf("mb","b") :- ()
-      Store("l1","p","mb") :- ()
-      Load("l1","q","p") :- ()
-      AddrOf("mc","c") :- ()
-      Store("l3","p","mc") :- ()
-      Load("l3","r","p") :- ()
-      AddrOf("p2","d") :- ()
-      AddrOf("mf","f") :- ()
-      Store("l5","p2","mf") :- ()
-      Phi("l6") :- ()
-      Copy("p3","p") :- ()
-      Copy("p3","p2") :- ()
-      Load("l6","s","p3") :- ()
-      AddrOf("me","e") :- ()
-      Store("l7","p3","me") :- ()
-      Load("l7","t","p3") :- ()
-      CFG("l1","l3") :- ()
-      CFG("l3","l5") :- ()
-      CFG("l3","l6") :- ()
-      CFG("l5","l6") :- ()
-      CFG("l6","l7") :- ()
+//      AddrOf("p","a") :- ()
+//      AddrOf("mb","b") :- ()
+//      Store("l1","p","mb") :- ()
+//      Load("l1","q","p") :- ()
+//      AddrOf("mc","c") :- ()
+//      Store("l3","p","mc") :- ()
+//      Load("l3","r","p") :- ()
+//      AddrOf("p2","d") :- ()
+//      AddrOf("mf","f") :- ()
+//      Store("l5","p2","mf") :- ()
+//      Phi("l6") :- ()
+//      Copy("p3","p") :- ()
+//      Copy("p3","p2") :- ()
+//      Load("l6","s","p3") :- ()
+//      AddrOf("me","e") :- ()
+//      Store("l7","p3","me") :- ()
+//      Load("l7","t","p3") :- ()
+//      CFG("l1","l3") :- ()
+//      CFG("l3","l5") :- ()
+//      CFG("l3","l6") :- ()
+//      CFG("l5","l6") :- ()
+//      CFG("l6","l7") :- ()
+
+      loadFactsFromFile(this.getClass.getResource("/470.lbm.flix").getPath, Map(
+        ("AddrOf", AddrOf),
+        ("Copy", Copy),
+        ("Load", Load),
+        ("Store", Store),
+        ("CFG", CFG),
+        ("Multi", Multi),
+        ("Phi", Phi),
+        ("Clear", Clear),
+        ("FILoad", FILoad),
+        ("FIStore", FIStore),
+        ("Pt", Pt),
+        ("SU", SU),
+        ("PtH", PtH),
+        ("Kill", Kill)
+      ))
     }
 
     println(p.asInstanceOf[APIImpl].program)

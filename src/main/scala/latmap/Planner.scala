@@ -83,7 +83,7 @@ class Planner {
       case KeyVariable(keyVar) =>
         var2reg(v) = numKeyVars
         numKeyVars += 1
-      case LatVariable(latVar) =>
+      case LatVariable(latVar, lattice) =>
         var2reg(v) = numLatVars + 1000
         numLatVars += 1
     })
