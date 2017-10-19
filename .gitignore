@@ -11,3 +11,6 @@ project
 .settings/
 .tmpBin/
 /bin/
+
+# Test files with incompatible license
+src/main/test/latmap/testdata/

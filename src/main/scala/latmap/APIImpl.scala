@@ -3,6 +3,7 @@ package latmap
 import javax.swing.ProgressMonitor
 
 import scala.collection.mutable
+import scala.io.Source
 
 class ProgramImpl extends Program {
   case class Rule(head: Atom, body: Seq[BodyElem]) extends ProgRule {
@@ -148,5 +149,24 @@ class APIImpl extends API {
   def T[T1,T2,T3,T4,T5,R](r: Variable, f: Function5[T1, T2, T3, T4, T5, R], t1: Term, t2: Term, t3: Term, t4: Term, t5: Term): BodyElem = Transfer(r, f, Seq(t1, t2, t3, t4, t5))
 
   def solve() = new Solver().solve(program)
+
+  def loadFactsFromFile(filename: String, relations: Map[String, Relation]): Unit = {
+    val lines = Source.fromFile(filename).getLines().toList
+    val fact = """(\w[\d\w]*)\((.*)\)\.""".r
+
+    for (line <- lines) {
+      line match {
+        case fact(name, keys) =>
+          val relation = relations(name)
+
+          val terms = keys.trim()
+            .drop(1)
+            .dropRight(1)
+            .split("""(?<!\\)\"\s*,\s*\"""")
+            .map(c => Constant(c))
+          relation.apply(terms:_*) :- ()
+      }
+    }
+  }
 }
 
