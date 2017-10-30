@@ -65,7 +65,7 @@ class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRul
          */
         IndexScan(
           //latmap.selectIndex(vars.zipWithIndex.collect { case (e, i) if boundVars.contains(e) => i }.toSet),
-          latmapGroup.get(latmapType.get).selectIndex(boundVars.filter(keyVars.contains(_)).map(vars.indexOf(_)).filter(_ >= 0)),
+          latmapGroup.get(latmapType.get).selectIndex(boundVars.intersect(keyVars.toSet).map(vars.indexOf(_))),
           mergeLat = false,
           inputRegs = keyVars.map(regAlloc).toArray,
           outputRegs = keyVars.map(regAlloc).toArray,
@@ -159,7 +159,7 @@ class FilterFnRuleElement(function: AnyRef, vars: Seq[Variable])
   extends RuleElement {
   override def variables: Seq[Variable] = vars
   override def costEstimate(boundVars: Set[Variable]): Int = {
-    0
+    if (boundVars.subsetOf(vars.toSet)) 0 else Int.MaxValue
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
     FilterFn(vars.map(regAlloc).toArray, function)

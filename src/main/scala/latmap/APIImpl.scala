@@ -64,6 +64,8 @@ class APIImpl extends API {
       val newVars = if(lattice eq BoolLattice) vars :+ Constant(BoolLattice.top) else vars
       Atom(latMap, newVars.dropRight(1), newVars.last)
     }
+
+    def numFacts(): Int = latMap.numFacts()
   }
 
   def relation(arity: Int, lattice: Lattice): Relation = {

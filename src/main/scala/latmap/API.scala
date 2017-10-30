@@ -19,6 +19,7 @@ trait API {
 
   trait APIRelation {
     def apply(terms: Term*): Atom
+    def numFacts(): Int
   }
   def relation(arity: Int, lattice: Lattice): Relation
   def relation(arity: Int): Relation

@@ -42,17 +42,17 @@ class LongSolverTest extends FunSuite {
       val z = latVariable(SULattice)
 
       // AddrO
-      Pt(p,a) :- AddrOf(p,a)
+      Pt(pvar,a) :- AddrOf(pvar,a)
 
       // Copy
-      Pt(p,a) :- (Copy(p,q), Pt(q,a))
+      Pt(pvar,a) :- (Copy(pvar,q), Pt(q,a))
 
       // Store
       def toSingle(x: String) = SULattice.Single(x)
       SU(l,a,z) :- (Store(l,pvar,q), Pt(pvar,a), Pt(q,b), T(z, toSingle, b))
 
-      PtH(a,b) :- (Store(l,pvar,q), Pt(p,a), Pt(q,b))
-      PtH(a,b) :- (FIStore(p,q,l), Pt(p,a), Pt(q,b))
+      PtH(a,b) :- (Store(l,pvar,q), Pt(pvar,a), Pt(q,b))
+      PtH(a,b) :- (FIStore(pvar,q,l), Pt(pvar,a), Pt(q,b))
 
       // Load
       def filter(e: SULattice.Elem, p:String): Boolean = e match {
@@ -61,8 +61,8 @@ class LongSolverTest extends FunSuite {
         case SULattice.Top => true
       }
 
-      Pt(p,b) :- (Load(l,p,q), Pt(q,a), F(filter,t,b), PtH(a,b), SU(l,a,t))
-      Pt(p,b) :- (FILoad(p,q,l), Pt(q,a), PtH(a,b))
+      Pt(pvar,b) :- (Load(l,pvar,q), Pt(q,a), F(filter,t,b), PtH(a,b), SU(l,a,t))
+      Pt(pvar,b) :- (FILoad(pvar,q,l), Pt(q,a), PtH(a,b))
 
       // Preserve
       def killNot(a: String, e: SULattice.Elem): Boolean = e match {
@@ -77,7 +77,7 @@ class LongSolverTest extends FunSuite {
       SU(l,a,z) :- (Clear(l), PtH(a,b), T(z,toSingle,b))
 
       // Kill
-      Kill(l,z) :- (Store(l,pvar,q), Pt(p,b), T(z,toSingle,b))
+      Kill(l,z) :- (Store(l,pvar,q), Pt(pvar,b), T(z,toSingle,b))
       Kill(l, SULattice.Top) :- Phi(l)
 
       // Example facts
@@ -120,11 +120,14 @@ class LongSolverTest extends FunSuite {
         ("PtH", PtH),
         ("Kill", Kill)
       ))
+
+      p.solve()
+
+      assert(Pt.numFacts() == 469)
+      println(Pt.numFacts())
     }
 
     println(p.asInstanceOf[APIImpl].program)
-
-    p.solve()
   }
 
 }
