@@ -116,11 +116,23 @@ class APIImpl extends API {
       //val newAtoms = if(latMap.lattice eq BoolLattice) atoms :+ Const(latVar, BoolLattice.top) else atoms
       //rules += Rule(this, newAtoms)
     }
+
+    override def addIndex(terms: Term*): Unit = {
+      val termsSet = terms.toSet
+      val indices = keyTerms.zipWithIndex.flatMap {
+        case (term, idx) => term match {
+          case kv: KeyVariable if termsSet.contains(kv) => Seq(idx)
+          case _ => Seq()
+        }
+      }.toSet
+
+      latMap.addIndex(new HashMapIndex(latMap, indices))
+    }
   }
 
   case class Const(variable: Term, constant: Any) extends BodyElem {
     override def convert(termToVar: (Term, Option[Lattice]) => program.Variable): program.Const =
-      program.Const(termToVar(variable, None), constant)
+    program.Const(termToVar(variable, None), constant)
   }
 
   case class Constant(constant: Any) extends Term

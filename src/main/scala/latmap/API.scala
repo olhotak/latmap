@@ -27,6 +27,7 @@ trait API {
   trait APIBodyElem
   trait APIAtom extends APIBodyElem {
     def :-(body: BodyElem*): Unit
+    def addIndex(terms: Term*): Unit
   }
 
   implicit def anyConst(a: Any): Constant

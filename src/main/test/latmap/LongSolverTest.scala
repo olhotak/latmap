@@ -3,7 +3,7 @@ package latmap
 import org.scalatest.FunSuite
 
 class LongSolverTest extends FunSuite {
-  test("SUopt") {
+  test("StrongUpdate tests") {
     val p = API()
 
     {
@@ -24,14 +24,6 @@ class LongSolverTest extends FunSuite {
       // Outputs
       val Pt = relation(2)
 
-      val SU = relation(2, SULattice)
-
-      val PtH = relation(2)
-      val Kill = relation(1, SULattice)
-
-      // Rules
-      // ----------
-      //
       val pvar = variable()
       val a = variable()
       val b = variable()
@@ -40,6 +32,40 @@ class LongSolverTest extends FunSuite {
       val q = variable()
       val t = latVariable(SULattice)
       val z = latVariable(SULattice)
+
+      // Indexes
+      AddrOf(a,b).addIndex(a,b)
+      Copy(a,b).addIndex(a,b)
+      Copy(a,b).addIndex(a)
+      Store(a,b,k).addIndex(a,b,k)
+      Store(a,b,k).addIndex(b)
+      Store(a,b,k).addIndex(k)
+      Load(a,b,k).addIndex(a,b,k)
+      Load(a,b,k).addIndex(a)
+      Load(a,b,k).addIndex(k)
+      CFG(a,b).addIndex(a,b)
+      CFG(a,b).addIndex(a)
+      CFG(a,b).addIndex(b)
+      FIStore(a,b,k).addIndex(a)
+      FIStore(a,b,k).addIndex(b)
+      FILoad(a,b,k).addIndex(b)
+
+      Pt(a,b).addIndex(a,b)
+      Pt(a,b).addIndex(a)
+
+      val SU = relation(2, SULattice)
+      SU(a,b,t).addIndex(a,b)
+      SU(a,b,t).addIndex(a)
+
+      val PtH = relation(2)
+      PtH(a,b).addIndex(a,b)
+      PtH(a,b).addIndex(a)
+      val Kill = relation(1, SULattice)
+
+      // Rules
+      // ----------
+      //
+
 
       // AddrO
       Pt(pvar,a) :- AddrOf(pvar,a)
@@ -104,6 +130,7 @@ class LongSolverTest extends FunSuite {
 //      CFG("l5","l6") :- ()
 //      CFG("l6","l7") :- ()
 
+      // Update the file name below to any .flix fact file that's in the test.latmap.testdata folder.
       loadFactsFromFile(this.getClass.getResource("/470.lbm.flix").getPath, Map(
         ("AddrOf", AddrOf),
         ("Copy", Copy),
@@ -123,8 +150,9 @@ class LongSolverTest extends FunSuite {
 
       p.solve()
 
+      // 469 facts should be in the output for 470.lbm.flix; update this number for other fact files.
       assert(Pt.numFacts() == 469)
-      println(Pt.numFacts())
+
     }
 
     println(p.asInstanceOf[APIImpl].program)
