@@ -19,6 +19,7 @@ trait API {
 
   trait APIRelation {
     def apply(terms: Term*): Atom
+    def numFacts(): Int
   }
   def relation(arity: Int, lattice: Lattice): Relation
   def relation(arity: Int): Relation
@@ -26,6 +27,7 @@ trait API {
   trait APIBodyElem
   trait APIAtom extends APIBodyElem {
     def :-(body: BodyElem*): Unit
+    def addIndex(terms: Term*): Unit
   }
 
   implicit def anyConst(a: Any): Constant

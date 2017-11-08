@@ -39,4 +39,5 @@ trait Program {
   type Rule <: ProgRule
 
   def rules: Seq[Rule]
+  def addIndex(latMap: LatMap[_ <: Lattice], indices: Set[Int]): Unit
 }

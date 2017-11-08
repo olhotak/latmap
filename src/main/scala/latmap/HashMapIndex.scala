@@ -34,7 +34,8 @@ class HashMapIndex(
       }
       
       def isEmptyEntry = store(pos * entryLen) == empty
-      
+
+      // advance pos to next match or empty entry
       def validatePosn() = {
           do {
               pos &= mask

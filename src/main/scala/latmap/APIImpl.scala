@@ -30,6 +30,8 @@ class ProgramImpl extends Program {
     override def toString = result + " := " + function + arguments.mkString("(", ", ", ")")
   }
 
+  def addIndex(latMap: LatMap[_ <: Lattice], indices: Set[Int]): Unit = latMap.addIndex(new HashMapIndex(latMap, indices))
+
   val rules = mutable.ArrayBuffer[Rule]()
   override def toString = rules.mkString("\n")
 }
@@ -64,6 +66,8 @@ class APIImpl extends API {
       val newVars = if(lattice eq BoolLattice) vars :+ Constant(BoolLattice.top) else vars
       Atom(latMap, newVars.dropRight(1), newVars.last)
     }
+
+    def numFacts(): Int = latMap.numFacts()
   }
 
   def relation(arity: Int, lattice: Lattice): Relation = {
@@ -114,11 +118,23 @@ class APIImpl extends API {
       //val newAtoms = if(latMap.lattice eq BoolLattice) atoms :+ Const(latVar, BoolLattice.top) else atoms
       //rules += Rule(this, newAtoms)
     }
+
+    override def addIndex(terms: Term*): Unit = {
+      val termsSet = terms.toSet
+      val indices = keyTerms.zipWithIndex.flatMap {
+        case (term, idx) => term match {
+          case kv: KeyVariable if termsSet.contains(kv) => Seq(idx)
+          case _ => Seq()
+        }
+      }.toSet
+
+      program.addIndex(latMap, indices)
+    }
   }
 
   case class Const(variable: Term, constant: Any) extends BodyElem {
     override def convert(termToVar: (Term, Option[Lattice]) => program.Variable): program.Const =
-      program.Const(termToVar(variable, None), constant)
+    program.Const(termToVar(variable, None), constant)
   }
 
   case class Constant(constant: Any) extends Term

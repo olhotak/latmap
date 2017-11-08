@@ -3,7 +3,7 @@ package latmap
 import org.scalatest.FunSuite
 
 class LongSolverTest extends FunSuite {
-  test("SUopt") {
+  test("StrongUpdate tests") {
     val p = API()
 
     {
@@ -24,14 +24,6 @@ class LongSolverTest extends FunSuite {
       // Outputs
       val Pt = relation(2)
 
-      val SU = relation(2, SULattice)
-
-      val PtH = relation(2)
-      val Kill = relation(1, SULattice)
-
-      // Rules
-      // ----------
-      //
       val pvar = variable()
       val a = variable()
       val b = variable()
@@ -41,18 +33,52 @@ class LongSolverTest extends FunSuite {
       val t = latVariable(SULattice)
       val z = latVariable(SULattice)
 
+      // Indexes
+      AddrOf(a,b).addIndex(a,b)
+      Copy(a,b).addIndex(a,b)
+      Copy(a,b).addIndex(a)
+      Store(a,b,k).addIndex(a,b,k)
+      Store(a,b,k).addIndex(b)
+      Store(a,b,k).addIndex(k)
+      Load(a,b,k).addIndex(a,b,k)
+      Load(a,b,k).addIndex(a)
+      Load(a,b,k).addIndex(k)
+      CFG(a,b).addIndex(a,b)
+      CFG(a,b).addIndex(a)
+      CFG(a,b).addIndex(b)
+      FIStore(a,b,k).addIndex(a)
+      FIStore(a,b,k).addIndex(b)
+      FILoad(a,b,k).addIndex(b)
+
+      Pt(a,b).addIndex(a,b)
+      Pt(a,b).addIndex(a)
+
+      val SU = relation(2, SULattice)
+      SU(a,b,t).addIndex(a,b)
+      SU(a,b,t).addIndex(a)
+
+      val PtH = relation(2)
+      PtH(a,b).addIndex(a,b)
+      PtH(a,b).addIndex(a)
+      val Kill = relation(1, SULattice)
+
+      // Rules
+      // ----------
+      //
+
+
       // AddrO
-      Pt(p,a) :- AddrOf(p,a)
+      Pt(pvar,a) :- AddrOf(pvar,a)
 
       // Copy
-      Pt(p,a) :- (Copy(p,q), Pt(q,a))
+      Pt(pvar,a) :- (Copy(pvar,q), Pt(q,a))
 
       // Store
       def toSingle(x: String) = SULattice.Single(x)
       SU(l,a,z) :- (Store(l,pvar,q), Pt(pvar,a), Pt(q,b), T(z, toSingle, b))
 
-      PtH(a,b) :- (Store(l,pvar,q), Pt(p,a), Pt(q,b))
-      PtH(a,b) :- (FIStore(p,q,l), Pt(p,a), Pt(q,b))
+      PtH(a,b) :- (Store(l,pvar,q), Pt(pvar,a), Pt(q,b))
+      PtH(a,b) :- (FIStore(pvar,q,l), Pt(pvar,a), Pt(q,b))
 
       // Load
       def filter(e: SULattice.Elem, p:String): Boolean = e match {
@@ -61,8 +87,8 @@ class LongSolverTest extends FunSuite {
         case SULattice.Top => true
       }
 
-      Pt(p,b) :- (Load(l,p,q), Pt(q,a), F(filter,t,b), PtH(a,b), SU(l,a,t))
-      Pt(p,b) :- (FILoad(p,q,l), Pt(q,a), PtH(a,b))
+      Pt(pvar,b) :- (Load(l,pvar,q), Pt(q,a), F(filter,t,b), PtH(a,b), SU(l,a,t))
+      Pt(pvar,b) :- (FILoad(pvar,q,l), Pt(q,a), PtH(a,b))
 
       // Preserve
       def killNot(a: String, e: SULattice.Elem): Boolean = e match {
@@ -77,7 +103,7 @@ class LongSolverTest extends FunSuite {
       SU(l,a,z) :- (Clear(l), PtH(a,b), T(z,toSingle,b))
 
       // Kill
-      Kill(l,z) :- (Store(l,pvar,q), Pt(p,b), T(z,toSingle,b))
+      Kill(l,z) :- (Store(l,pvar,q), Pt(pvar,b), T(z,toSingle,b))
       Kill(l, SULattice.Top) :- Phi(l)
 
       // Example facts
@@ -104,6 +130,7 @@ class LongSolverTest extends FunSuite {
 //      CFG("l5","l6") :- ()
 //      CFG("l6","l7") :- ()
 
+      // Update the file name below to any .flix fact file that's in the test.latmap.testdata folder.
       loadFactsFromFile(this.getClass.getResource("/470.lbm.flix").getPath, Map(
         ("AddrOf", AddrOf),
         ("Copy", Copy),
@@ -120,11 +147,15 @@ class LongSolverTest extends FunSuite {
         ("PtH", PtH),
         ("Kill", Kill)
       ))
+
+      p.solve()
+
+      // 469 facts should be in the output for 470.lbm.flix; update this number for other fact files.
+      assert(Pt.numFacts() == 469)
+
     }
 
     println(p.asInstanceOf[APIImpl].program)
-
-    p.solve()
   }
 
 }
