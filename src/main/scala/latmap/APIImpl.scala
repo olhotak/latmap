@@ -30,6 +30,8 @@ class ProgramImpl extends Program {
     override def toString = result + " := " + function + arguments.mkString("(", ", ", ")")
   }
 
+  def addIndex(latMap: LatMap[_ <: Lattice], indices: Set[Int]): Unit = latMap.addIndex(new HashMapIndex(latMap, indices))
+
   val rules = mutable.ArrayBuffer[Rule]()
   override def toString = rules.mkString("\n")
 }
@@ -126,7 +128,7 @@ class APIImpl extends API {
         }
       }.toSet
 
-      latMap.addIndex(new HashMapIndex(latMap, indices))
+      program.addIndex(latMap, indices)
     }
   }
 
