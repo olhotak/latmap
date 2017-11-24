@@ -29,12 +29,16 @@ trait EvalContext {
   def readFromReg(reg: Int): Any = {
     if (reg >= 1000)
       latRegs(reg - 1000)
+    else if (reg == -1)
+      true // Lattice values in BoolLattice map to -1
     else
       translator.fromInt(keyRegs(reg))
   }
   def writeToReg(reg: Int, value: Any): Unit = {
     if (reg >= 1000)
       latRegs(reg - 1000) = value
+    else if (reg == -1)
+      throw new RuntimeException("Writing to bool lattice constant register")
     else
       keyRegs(reg) = translator.toInt(value)
   }
@@ -102,18 +106,68 @@ case class KeyConstantFilter(keyReg : Int,
 
 case class LatConstantEval(latReg : Int, const : Any, lattice : Lattice) extends PlanElement {
   def go(evalContext: EvalContext): Unit = {
-    evalContext.latRegs(latReg - 1000) = const
-    next.go(evalContext)
+    if (latReg >= 1000)
+      evalContext.latRegs(latReg - 1000) = const
+    if (const != lattice.bottom)
+      next.go(evalContext)
   }
 }
 
 case class LatConstantFilter(latReg : Int, const : Any, lattice : Lattice) extends PlanElement {
   def go(evalContext: EvalContext): Unit = {
-    val newLat : lattice.Elem = lattice.glb(const.asInstanceOf[lattice.Elem],
-          evalContext.latRegs(latReg - 1000).asInstanceOf[lattice.Elem])
-    evalContext.latRegs(latReg - 1000) = newLat
+    val newLat : lattice.Elem = if (lattice == BoolLattice) {
+      true.asInstanceOf[lattice.Elem]
+    } else {
+      val latElem = lattice.glb(const.asInstanceOf[lattice.Elem],
+        evalContext.latRegs(latReg - 1000).asInstanceOf[lattice.Elem])
+      evalContext.latRegs(latReg - 1000) = latElem
+      latElem
+    }
+
     if (newLat != lattice.bottom)
       next.go(evalContext)
+  }
+}
+
+/**
+  * Plan element that performs a scan over the provided index.
+  * For each result in the index,
+  *   writes the keys and lattice element to the provided output registers
+  *   and calls next.go().
+  *
+  * @param index index to scan *
+  * @param inputRegs indices of the input registers. must hold keys.
+  * @param outputRegs indices of the output registers.
+  */
+case class BoolIndexScan(index: Index,
+                     inputRegs: Array[Int],
+                     outputRegs: Array[Int]) extends PlanElement {
+
+  def go(evalContext: EvalContext): Unit = {
+    val latticeMap: LatMap[_ <: Lattice] = index.latticeMap
+    val keys = new Array[Int](latticeMap.arity)
+    var i = 0
+
+    i = 0
+    while (i < latticeMap.arity) {
+      if (inputRegs(i) >= 0)
+        keys(i) = evalContext.keyRegs(inputRegs(i))
+      i += 1
+    }
+
+    val iterator = index.get(keys)
+    while (iterator.hasNext) {
+      val outputs = iterator.next
+
+      // Write to output registers
+      i = 0
+      while (i < outputRegs.length) {
+        evalContext.keyRegs(outputRegs(i)) = outputs(i)
+        i = i + 1
+      }
+
+      next.go(evalContext)
+    }
   }
 }
 
@@ -158,15 +212,15 @@ case class IndexScan(index: Index,
         i = i + 1
       }
 
-      if (outputLatReg >= 0) { // TODO: why is this check here?
-        var newLat = latticeMap.get(outputs)
-        val lattice: Lattice = latticeMap.lattice
-        if (mergeLat)
-          newLat = latticeMap.lattice.glb(newLat, evalContext.latRegs(outputLatReg - 1000).asInstanceOf[latticeMap.lattice.Elem])
+      var newLat = latticeMap.get(outputs)
+      val lattice: Lattice = latticeMap.lattice
+      if (mergeLat)
+        newLat = latticeMap.lattice.glb(newLat, evalContext.latRegs(outputLatReg - 1000).asInstanceOf[latticeMap.lattice.Elem])
+      if (lattice != BoolLattice)
         evalContext.latRegs(outputLatReg - 1000) = newLat
-      }
 
-      next.go(evalContext)
+      if (newLat != lattice.bottom)
+        next.go(evalContext)
     }
   }
 }
@@ -191,6 +245,9 @@ case class InputPlanElement(outputRegs: Array[Int],
 
       if (outputLatReg >= 0) { // TODO: why is this check here?
         val newLat = latticeMap.get(outputs)
+        if (newLat == latticeMap.lattice.bottom) {
+          return
+        }
         evalContext.latRegs(outputLatReg - 1000) = newLat
       }
 
@@ -209,7 +266,8 @@ case class InputPlanElement(outputRegs: Array[Int],
   */
 case class TransferFn(inputRegs: Array[Int],
                      outputReg: Int,
-                    function: AnyRef) extends PlanElement {
+                     function: AnyRef,
+                      lattice: Option[Lattice]) extends PlanElement {
   def go(evalContext: EvalContext) = {
     val args = inputRegs.map((reg) => {
       if (reg >= 1000)
@@ -225,11 +283,15 @@ case class TransferFn(inputRegs: Array[Int],
       case 4 => function.asInstanceOf[Function4[Any, Any, Any, Any, Any]](args(0), args(1), args(2), args(3))
       case 5 => function.asInstanceOf[Function5[Any, Any, Any, Any, Any, Any]](args(0), args(1), args(2), args(3), args(4))
     }
-    if (outputReg >= 1000)
-      evalContext.latRegs(outputReg - 1000) = result
-    else
+    if (lattice.isDefined) {
+      if (outputReg >= 1000)
+        evalContext.latRegs(outputReg - 1000) = result
+      if (result != lattice.get.bottom)
+        next.go(evalContext)
+    } else {
       evalContext.keyRegs(outputReg) = evalContext.translator.toInt(result)
-    next.go(evalContext)
+      next.go(evalContext)
+    }
 
   }
 }
@@ -268,8 +330,16 @@ case class WriteToLatMap(inputRegs: Array[Int],
   def go(evalContext: EvalContext) = {
     val trueLatMap = latmapGroup.trueLatMap
     val outputLatMap = latmapGroup.outputLatMap
+    assert(trueLatMap.lattice == outputLatMap.lattice)
+
+    val putElem: outputLatMap.lattice.Elem = if (outputLatMap.lattice == BoolLattice) {
+      true.asInstanceOf[outputLatMap.lattice.Elem]
+    } else {
+      evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem]
+    }
+
     val putVal = trueLatMap.put(inputRegs.map(evalContext.keyRegs(_)),
-        evalContext.latRegs(inputLatReg - 1000).asInstanceOf[trueLatMap.lattice.Elem])
+      putElem.asInstanceOf[trueLatMap.lattice.Elem])
 
     putVal match {
       case None =>
@@ -280,9 +350,11 @@ case class WriteToLatMap(inputRegs: Array[Int],
             s" ${evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem]}" + " to :" + outputLatMap)
         }*/
       case Some(elem) =>
-        outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)), elem.asInstanceOf[outputLatMap.lattice.Elem])
-        println(s"Writing ${inputRegs.map((i) => evalContext.translator.fromInt(evalContext.keyRegs(i)))mkString(" ")} ->" +
-          s" ${evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem]}" + " to :" + outputLatMap)
+        outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)), putElem)
+
+        println(s"Writing ${inputRegs.map((i) => evalContext.translator.fromInt(evalContext.keyRegs(i))) mkString (" ")} ->" +
+          s" ${putElem}" + " to :" + outputLatMap)
+
     }
 
     if (next != null)

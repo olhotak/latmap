@@ -25,30 +25,36 @@ class Planner {
 
     // skip step 2 for constant elements
     // Step 2: Create an initial PlanElement and add its variables to the bound list
-    val initBodyRule : RuleElement = bodyIdx match {
-      case Some(x) => rule.bodyElements(x)
-      case None => rule.bodyElements(0)
+
+    val remaining = mutable.Set(rule.bodyElements:_*)
+    var curPlanElement: Option[PlanElement] = None
+    var initPlanElement: Option[PlanElement] = curPlanElement
+
+    def addPlanElement(pe: PlanElement, re: RuleElement): Unit = {
+      curPlanElement match {
+        case Some(cur) =>
+          cur.next = pe
+        case None =>
+          initPlanElement = Some(pe)
+      }
+      curPlanElement = Some(pe)
+
+      boundVars ++= re.variables
+      remaining.remove(re)
     }
 
-    val initPlanElement = initBodyRule match {
-      case latConstRuleElement : LatConstantRuleElement =>
-        latConstRuleElement.planElement(Set(), var2reg)
-      case constRuleElement : KeyConstantRuleElement =>
-        constRuleElement.planElement(Set(), var2reg)
-      case f : FilterFnRuleElement =>
-        throw new Exception("FilterFnRuleElement should never be the first RuleElement")
-      case t : TransferFnRuleElement =>
-        t.planElement(Set(), var2reg)
-      case latMapRuleElement : LatmapRuleElement =>
-        latMapRuleElement.planElement(Set(), var2reg, Some(latmap.Input))
+    bodyIdx match {
+      case Some(x) =>
+        val be = rule.bodyElements(x)
+        assert(be.isInstanceOf[LatmapRuleElement])
+
+        addPlanElement(be.planElement(Set(), var2reg, Some(latmap.Input)), be)
+      case None =>
     }
+
     // create new InputRuleElement which just reads all facts from input latmap to do semi-naive evaluation
 
-    boundVars ++= initBodyRule.variables
-    var curPlanElement = initPlanElement
-
     // Step 3: Greedily add the lowest cost PlanElement to the plan
-    val remaining = mutable.Set(rule.bodyElements:_*) - initBodyRule
     while (remaining.nonEmpty) {
       var best: RuleElement = null
       var bestCost = Int.MaxValue
@@ -60,18 +66,16 @@ class Planner {
         }
       }
       // add new parameter to planElement() for indexCreation
-      curPlanElement.next = best.planElement(boundVars.toSet, var2reg, Some(True))
-      boundVars ++= best.variables
-      curPlanElement = curPlanElement.next
-      remaining.remove(best)
+      addPlanElement(best.planElement(boundVars.toSet, var2reg, Some(True)), best)
+
     }
     println("\n")
 
     // Step 4: Add a final PlanElement that writes the result to the LatMap
     val write = rule.headElement.writeToLatMap(var2reg)
-    curPlanElement.next = write
+    curPlanElement.get.next = write
 
-    Plan(initPlanElement, rule)
+    Plan(initPlanElement.get, rule)
   }
 
   def allocateVariables(rule: Rule): mutable.Map[Variable, Int] = {
@@ -84,7 +88,11 @@ class Planner {
         var2reg(v) = numKeyVars
         numKeyVars += 1
       case LatVariable(latVar, lattice) =>
-        var2reg(v) = numLatVars + 1000
+        if (lattice != BoolLattice) {
+          var2reg(v) = numLatVars + 1000
+        } else {
+          var2reg(v) = -1
+        }
         numLatVars += 1
     })
 

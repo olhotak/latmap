@@ -63,14 +63,23 @@ class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRul
           make a better index
           call Index scan with better index
          */
-        IndexScan(
-          //latmap.selectIndex(vars.zipWithIndex.collect { case (e, i) if boundVars.contains(e) => i }.toSet),
-          latmapGroup.get(latmapType.get).selectIndex(boundVars.intersect(keyVars.toSet).map(vars.indexOf(_))),
-          mergeLat = false,
-          inputRegs = keyVars.map(regAlloc).toArray,
-          outputRegs = keyVars.map(regAlloc).toArray,
-          outputLatReg = regAlloc(latVar)
-        )
+        /*latmapGroup.get(latmapType.get).lattice match {
+          case BoolLattice =>
+            BoolIndexScan(
+              latmapGroup.get(latmapType.get).selectIndex(boundVars.intersect(keyVars.toSet).map(vars.indexOf(_))),
+              inputRegs = keyVars.map(regAlloc).toArray,
+              outputRegs = keyVars.map(regAlloc).toArray
+            )
+          case _ =>*/
+            IndexScan(
+              //latmap.selectIndex(vars.zipWithIndex.collect { case (e, i) if boundVars.contains(e) => i }.toSet),
+              latmapGroup.get(latmapType.get).selectIndex(boundVars.intersect(keyVars.toSet).map(vars.indexOf(_))),
+              mergeLat = boundVars.contains(latVar) && !(latVar.asInstanceOf[LatVariable].lattice == BoolLattice),
+              inputRegs = keyVars.map(regAlloc).toArray,
+              outputRegs = keyVars.map(regAlloc).toArray,
+              outputLatReg = regAlloc(latVar)
+            )
+        //}
     }
   }
   override def writeToLatMap(regAlloc: Variable=>Int): PlanElement = {
@@ -81,7 +90,6 @@ class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRul
         constRule
       )
   }
-
 }
 
 
@@ -159,7 +167,7 @@ class FilterFnRuleElement(function: AnyRef, vars: Seq[Variable])
   extends RuleElement {
   override def variables: Seq[Variable] = vars
   override def costEstimate(boundVars: Set[Variable]): Int = {
-    if (boundVars.subsetOf(vars.toSet)) 0 else Int.MaxValue
+    if (vars.toSet.subsetOf(boundVars)) 0 else Int.MaxValue
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
     FilterFn(vars.map(regAlloc).toArray, function)
@@ -172,9 +180,13 @@ class TransferFnRuleElement(function: AnyRef, vars: Seq[Variable], outputVar: Va
   extends RuleElement {
   override def variables: Seq[Variable] = vars :+ outputVar
   override def costEstimate(boundVars: Set[Variable]): Int = {
-    if (boundVars.subsetOf(vars.toSet)) 0 else Int.MaxValue
+    if (vars.toSet.subsetOf(boundVars)) 0 else Int.MaxValue
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType]): PlanElement = {
-    TransferFn(vars.map(regAlloc).toArray, regAlloc(outputVar), function)
+    val lattice = outputVar match {
+      case k: KeyVariable => None
+      case l: LatVariable => Some(l.lattice)
+    }
+    TransferFn(vars.map(regAlloc).toArray, regAlloc(outputVar), function, lattice)
   }
 }
