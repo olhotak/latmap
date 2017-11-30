@@ -69,7 +69,7 @@ class Planner {
       addPlanElement(best.planElement(boundVars.toSet, var2reg, Some(True)), best)
 
     }
-    println("\n")
+    //println("\n")
 
     // Step 4: Add a final PlanElement that writes the result to the LatMap
     val write = rule.headElement.writeToLatMap(var2reg)

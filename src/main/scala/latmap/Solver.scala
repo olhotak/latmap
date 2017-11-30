@@ -1,5 +1,7 @@
 package latmap
 
+import scala.annotation._, elidable._
+
 class Solver {
   def solve(program: Program) = {
     val planner = new Planner()
@@ -119,6 +121,7 @@ class Solver {
       ).groupBy(_._1).map { case (k,v) => (k,v.map(_._2))}
 
     val myTranslator = new Translator()
+    @elidable(FINE)
     def printFacts(latmapType : LatMapType) : Unit = {
       println("Printing " + latmapType)
       groupLatMaps.foreach((g) => {

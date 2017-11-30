@@ -1,5 +1,6 @@
 package latmap
 
+import scala.annotation._, elidable._
 /**
   * A Plan simply holds a pointer to the root PlanElement.
   */
@@ -103,10 +104,10 @@ case class KeyConstantFilter(keyReg : Int,
   }
 }
 // TODO: I combined the two
-
+// TODO: Don't create these for BoolLattice, const == true
 case class LatConstantEval(latReg : Int, const : Any, lattice : Lattice) extends PlanElement {
   def go(evalContext: EvalContext): Unit = {
-    if (latReg >= 1000)
+    if (lattice != BoolLattice)
       evalContext.latRegs(latReg - 1000) = const
     if (const != lattice.bottom)
       next.go(evalContext)
@@ -116,7 +117,7 @@ case class LatConstantEval(latReg : Int, const : Any, lattice : Lattice) extends
 case class LatConstantFilter(latReg : Int, const : Any, lattice : Lattice) extends PlanElement {
   def go(evalContext: EvalContext): Unit = {
     val newLat : lattice.Elem = if (lattice == BoolLattice) {
-      true.asInstanceOf[lattice.Elem]
+      (const == true).asInstanceOf[lattice.Elem]
     } else {
       val latElem = lattice.glb(const.asInstanceOf[lattice.Elem],
         evalContext.latRegs(latReg - 1000).asInstanceOf[lattice.Elem])
@@ -212,6 +213,7 @@ case class IndexScan(index: Index,
         i = i + 1
       }
 
+      // TODO: Delete this all in BoolIndexScan
       var newLat = latticeMap.get(outputs)
       val lattice: Lattice = latticeMap.lattice
       if (mergeLat)
@@ -243,15 +245,18 @@ case class InputPlanElement(outputRegs: Array[Int],
         i = i + 1
       }
 
+      var notBottom = true
       if (outputLatReg >= 0) { // TODO: why is this check here?
         val newLat = latticeMap.get(outputs)
-        if (newLat == latticeMap.lattice.bottom) {
-          return
+        if (newLat != latticeMap.lattice.bottom) {
+          evalContext.latRegs(outputLatReg - 1000) = newLat
+        } else {
+          notBottom = false
         }
-        evalContext.latRegs(outputLatReg - 1000) = newLat
       }
 
-      next.go(evalContext)
+      if (notBottom)
+        next.go(evalContext)
     }
   }
 }
@@ -352,8 +357,9 @@ case class WriteToLatMap(inputRegs: Array[Int],
       case Some(elem) =>
         outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)), putElem)
 
-        println(s"Writing ${inputRegs.map((i) => evalContext.translator.fromInt(evalContext.keyRegs(i))) mkString (" ")} ->" +
+        @elidable(FINE) def debugMsg = println(s"Writing ${inputRegs.map((i) => evalContext.translator.fromInt(evalContext.keyRegs(i))) mkString (" ")} ->" +
           s" ${putElem}" + " to :" + outputLatMap)
+        debugMsg
 
     }
 
