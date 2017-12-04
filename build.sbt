@@ -14,5 +14,6 @@ lazy val latmap = (project in file("."))
     name := "latmap",
     scalaSource in Compile := baseDirectory.value / "src" / "main" / "scala",
     scalaSource in Test := baseDirectory.value / "src" / "main" / "test",
+    resourceDirectory in Test := baseDirectory.value / "src" / "main" / "test" / "latmap" / "testdata",
     libraryDependencies ++= dependencies
   )

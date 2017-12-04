@@ -213,13 +213,11 @@ case class IndexScan(index: Index,
         i = i + 1
       }
 
-      // TODO: Delete this all in BoolIndexScan
       var newLat = latticeMap.get(outputs)
       val lattice: Lattice = latticeMap.lattice
       if (mergeLat)
         newLat = latticeMap.lattice.glb(newLat, evalContext.latRegs(outputLatReg - 1000).asInstanceOf[latticeMap.lattice.Elem])
-      if (lattice != BoolLattice)
-        evalContext.latRegs(outputLatReg - 1000) = newLat
+      evalContext.latRegs(outputLatReg - 1000) = newLat
 
       if (newLat != lattice.bottom)
         next.go(evalContext)
@@ -366,4 +364,24 @@ case class WriteToLatMap(inputRegs: Array[Int],
     if (next != null)
       next.go(evalContext)
   }
+}
+
+/**
+  * Calls the next plan element without doing anything.
+  *
+  * Eliminated in planner (i.e. never run)
+  */
+case class NoOp() extends PlanElement {
+  override def go(evalContext: EvalContext): Unit = {
+    next.go(evalContext)
+  }
+}
+
+/**
+  * Signals a dead end in a chain of PlanElements.
+  *
+  * Everything after this PlanElement is eliminated by planner (i.e. never run)
+  */
+case class DeadEnd() extends PlanElement {
+  override def go(evalContext: EvalContext): Unit = {}
 }

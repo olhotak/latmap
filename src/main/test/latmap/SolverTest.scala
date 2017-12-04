@@ -495,4 +495,26 @@ class SolverTest extends FunSuite {
 
     p.solve()
   }
+  test("DeadEnd1"){
+    val p = API()
+
+    {
+      import p._
+
+      val A = relation(2, ParityLattice)
+      val x = variable()
+      val y = variable()
+      val z = latVariable(ParityLattice)
+      A(0,1,ParityLattice.top) :- ()
+      A(1,2,ParityLattice.bottom) :- ()
+      A(x,y,z) :- (A(x,y,ParityLattice.bottom), A(0,x,z))
+
+      println(p.asInstanceOf[APIImpl].program)
+      solve()
+
+      // Only the top fact was written
+      assert(A.numFacts() == 1)
+    }
+
+  }
 }

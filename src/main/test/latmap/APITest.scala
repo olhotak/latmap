@@ -9,9 +9,10 @@ object APITest extends App {
     val y = variable()
     val z = variable()
     val dist = relation(2)
-    dist(x, z) :- (dist(x, y), dist(y, z))
     dist(1, 2) :- ()
     dist(2, 3) :- ()
+    dist(x, z) :- (dist(x, y), dist(y, z))
+
     def filter(x: Int, y: Int) = true
     dist(x, z) :- (dist(x, y), dist(y, z), F(filter, x, z))
     def transfer(x: Int, y: Int) = x+y

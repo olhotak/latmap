@@ -63,14 +63,14 @@ class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRul
           make a better index
           call Index scan with better index
          */
-        /*latmapGroup.get(latmapType.get).lattice match {
+        latmapGroup.get(latmapType.get).lattice match {
           case BoolLattice =>
             BoolIndexScan(
               latmapGroup.get(latmapType.get).selectIndex(boundVars.intersect(keyVars.toSet).map(vars.indexOf(_))),
               inputRegs = keyVars.map(regAlloc).toArray,
               outputRegs = keyVars.map(regAlloc).toArray
             )
-          case _ =>*/
+          case _ =>
             IndexScan(
               //latmap.selectIndex(vars.zipWithIndex.collect { case (e, i) if boundVars.contains(e) => i }.toSet),
               latmapGroup.get(latmapType.get).selectIndex(boundVars.intersect(keyVars.toSet).map(vars.indexOf(_))),
@@ -79,7 +79,7 @@ class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRul
               outputRegs = keyVars.map(regAlloc).toArray,
               outputLatReg = regAlloc(latVar)
             )
-        //}
+        }
     }
   }
   override def writeToLatMap(regAlloc: Variable=>Int): PlanElement = {
@@ -127,18 +127,26 @@ class LatConstantRuleElement(latVar: LatVariable, const : Any, lattice : Lattice
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
     // TODO: split up, using boundvars
-    if (boundVars.contains(latVar))
-      LatConstantFilter(
-        regAlloc(latVar),
-        const,
-        latVar.lattice
-      )
-    else
-      LatConstantEval(
-        regAlloc(latVar),
-        const,
-        latVar.lattice
-      )
+    if (lattice == BoolLattice) {
+      if (const == true) {
+        NoOp()
+      } else {
+        DeadEnd()
+      }
+    } else {
+      if (boundVars.contains(latVar))
+        LatConstantFilter(
+          regAlloc(latVar),
+          const,
+          latVar.lattice
+        )
+      else
+        LatConstantEval(
+          regAlloc(latVar),
+          const,
+          latVar.lattice
+        )
+    }
   }
 
 }
