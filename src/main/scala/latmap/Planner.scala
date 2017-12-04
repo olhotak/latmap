@@ -29,8 +29,24 @@ class Planner {
     val remaining = mutable.Set(rule.bodyElements:_*)
     var curPlanElement: Option[PlanElement] = None
     var initPlanElement: Option[PlanElement] = curPlanElement
+    var pastDeadEnd = false
 
     def addPlanElement(pe: PlanElement, re: RuleElement): Unit = {
+      // Eliminate NoOps and DeadEnds
+      if (pastDeadEnd) {
+        remaining.remove(re)
+        return
+      }
+
+      pe match {
+        case x: NoOp =>
+          remaining.remove(re)
+          return
+        case x: DeadEnd =>
+          pastDeadEnd = true
+        case _ =>
+      }
+
       curPlanElement match {
         case Some(cur) =>
           cur.next = pe
