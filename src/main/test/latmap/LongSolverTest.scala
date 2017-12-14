@@ -157,11 +157,14 @@ class LongSolverTest extends FunSuite {
     assert(program.Pt.numFacts() == 16)
   }
 
-  test("470.lbm") {
-    val program = new SUProgram
-    program.api.loadFactsFromFile(this.getClass.getResource("/470.lbm.flix").getPath, program.predicateNames)
-    program.api.solve()
-    assert(program.Pt.numFacts() == 469)
+  def llvmTest(benchmarkName: String, ptCount: Int) = {
+    test(benchmarkName) {
+      val program = new SUProgram
+      program.api.loadFactsFromFile(this.getClass.getResource("/"+benchmarkName+".flix").getPath, program.predicateNames)
+      program.api.solve()
+      assert(program.Pt.numFacts() == ptCount)
+    }
   }
-
+  llvmTest("470.lbm", 469)
+  llvmTest("429.mcf", 1867)
 }
