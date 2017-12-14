@@ -3,7 +3,7 @@ package latmap
 import org.scalatest.FunSuite
 
 class PlanTest extends FunSuite {
-  test("IndexScan basic functionality") {
+  ignore("IndexScan basic functionality") {
     val lattice = DistLattice
     val latMap = new SimpleLatMap(lattice, 2)
     val outputLatMap = new SimpleLatMap(lattice, 2)

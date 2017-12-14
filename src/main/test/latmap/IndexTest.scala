@@ -61,7 +61,7 @@ class IndexTest extends FunSuite with Matchers {
         require(writers1 == writers2) // TODO
         require(readers1 == readers2) // TODO
         
-        test(s"Stress test with $name on $writes writes and $reads reads; ($writers1/$readers1) ($writers2/$readers2)") {
+        ignore(s"Stress test with $name on $writes writes and $reads reads; ($writers1/$readers1) ($writers2/$readers2)") {
             val nextSecond = new AtomicInteger(0)
             def randomKey(): Array[Int] = {
                 val v = nextSecond.incrementAndGet()
