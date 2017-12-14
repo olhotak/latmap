@@ -22,20 +22,8 @@ class SimpleLatMap[T <: Lattice](val lattice: T, val arity : Int) extends LatMap
   }
 
   /**
-    *put(keys : Array[Int], elem : lattice.Elem) : Any
-    * value
-    * map.get(keys) match {
-    * None =>
-    *   map.put(v)
-    *   updateIndexes(keys)
-    *   v
-    * Some(old) =>
-    *   if (new != old)
-    *     map.put(v lub old)
-    *     v lub old
-    *   else
-    *     null
-    *
+    * None: no change
+    * Some(n): latmap was changed, new lattice value is n
     */
   override def put(keys: Array[Int], elem: lattice.Elem): Option[lattice.Elem] = {
     rows.get(keys) match {
