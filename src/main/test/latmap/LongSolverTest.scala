@@ -155,7 +155,7 @@ class LongSolverTest extends FunSuite {
 
     }
 
-    println(p.asInstanceOf[APIImpl].program)
+//    println(p.asInstanceOf[APIImpl].program)
   }
 
 }

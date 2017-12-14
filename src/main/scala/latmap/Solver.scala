@@ -147,7 +147,7 @@ class Solver {
     while (newFacts  > 0){
       // swap inputLatMaps with outputLatMaps
       groupLatMaps.foreach(_.setInput())
-      printFacts(latmap.Input)
+//      printFacts(latmap.Input)
       for (latmapGroup : LatMapGroup <- groupLatMaps if latmapGroup.inputLatMap.numFacts() > 0){
         regPlans.getOrElse(latmapGroup, Seq()).foreach((tup) => {
           val plan: Plan = tup._2
@@ -155,11 +155,11 @@ class Solver {
 
         })
       }
-      printFacts(latmap.Output)
+//      printFacts(latmap.Output)
 
       newFacts = groupLatMaps.map(_.outputLatMap.numFacts()).sum
     }
-    printFacts(latmap.True)
+//    printFacts(latmap.True)
 
   }
 }
