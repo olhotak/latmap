@@ -61,10 +61,8 @@ class Planner {
 
     bodyIdx match {
       case Some(x) =>
-        val be = rule.bodyElements(x)
-        assert(be.isInstanceOf[LatmapRuleElement])
-
-        addPlanElement(be.planElement(Set(), var2reg, Some(latmap.Input)), be)
+        val be = rule.bodyElements(x).asInstanceOf[LatmapRuleElement]
+        addPlanElement(be.inputPlanElement(var2reg), be)
       case None =>
     }
 
@@ -82,7 +80,7 @@ class Planner {
         }
       }
       // add new parameter to planElement() for indexCreation
-      addPlanElement(best.planElement(boundVars.toSet, var2reg, Some(True)), best)
+      addPlanElement(best.planElement(boundVars.toSet, var2reg), best)
 
     }
     //println("\n")
@@ -99,18 +97,18 @@ class Planner {
     var numKeyVars = 0
     var numLatVars = 0
 
-    rule.variables.foreach((v) => v match {
-      case KeyVariable(keyVar) =>
+    rule.variables.foreach {
+      case v@KeyVariable(keyVar) =>
         var2reg(v) = numKeyVars
         numKeyVars += 1
-      case LatVariable(latVar, lattice) =>
+      case v@LatVariable(latVar, lattice) =>
         if (lattice != BoolLattice) {
           var2reg(v) = numLatVars + 1000
         } else {
           var2reg(v) = -1
         }
         numLatVars += 1
-    })
+    }
 
     assert(numKeyVars == rule.numKeyVars)
     assert(numLatVars == rule.numLatVars)

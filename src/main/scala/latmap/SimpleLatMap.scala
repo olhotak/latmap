@@ -55,7 +55,7 @@ class SimpleLatMap[T <: Lattice](val lattice: T, val arity : Int, val name: Stri
     indexes += index
   }
 
-  override def numFacts() : Int = rows.size
+  override def numFacts : Int = rows.size
 
   def writePhase1(): Unit = {}
   def betweenWritePhases(): Unit = {}

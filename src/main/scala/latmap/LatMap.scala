@@ -19,7 +19,7 @@ trait LatMap[T <: Lattice] {
   def get(keys: Array[Int]): Elem
 
   /** number of keys mapped to a non-bottom lattice element. */
-  def numFacts() : Int
+  def numFacts : Int
 
   /** Iterator over all the keys mapped to a non-bottom lattice element. */
   def keyIterator: Iterator[Array[Int]]

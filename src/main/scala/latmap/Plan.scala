@@ -229,10 +229,11 @@ case class InputPlanElement(outputRegs: Array[Int],
                             latmapGroup : LatMapGroup
                            ) extends PlanElement {
   def go(evalContext: EvalContext) : Unit = {
-    val latticeMap : LatMap[_ <: Lattice] = latmapGroup.inputLatMap
+    val latticeMap = latmapGroup.inputLatMap
     var i = 0
 
     val iterator = latticeMap.keyIterator
+    val valueIterator = latticeMap.valueIterator
     while (iterator.hasNext) {
       val outputs = iterator.next
 
@@ -245,7 +246,7 @@ case class InputPlanElement(outputRegs: Array[Int],
 
       var notBottom = true
       if (outputLatReg >= 0) { // TODO: why is this check here?
-        val newLat = latticeMap.get(outputs)
+        val newLat = valueIterator.next()
         if (newLat != latticeMap.lattice.bottom) {
           evalContext.latRegs(outputLatReg - 1000) = newLat
         } else {
@@ -329,7 +330,7 @@ case class WriteToLatMap(inputRegs: Array[Int],
                          inputLatReg: Int,
                          latmapGroup : LatMapGroup,
                          constRule : Boolean) extends PlanElement {
-  require(inputRegs.length == latmapGroup.get(True).arity)
+  require(inputRegs.length == latmapGroup.arity)
   def go(evalContext: EvalContext) = {
     val trueLatMap = latmapGroup.trueLatMap
     val outputLatMap = latmapGroup.outputLatMap

@@ -22,7 +22,7 @@ final class ConcurrentLatMap[T <: Lattice](val lattice: T, val arity: Int) exten
     }
   }
 
-  override def numFacts() : Int = rows.size()
+  override def numFacts : Int = rows.size()
 
   override def keyIterator: Iterator[Array[Int]] = {
     val keys = rows.keys()

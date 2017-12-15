@@ -112,18 +112,6 @@ class Solver {
         })
       ).groupBy(_._1).map { case (k,v) => (k,v.map(_._2))}
 
-    @elidable(FINE)
-    def printFacts(latmapType : LatMapType) : Unit = {
-      println("Printing " + latmapType)
-      program.latMapGroups.foreach((g) => {
-        println("latmap: " + g.get(latmapType))
-        g.get(latmapType).dump(program.translator)
-        println()
-        println()
-
-      })
-      println()
-    }
     constPlans.foreach((tup) => {
       val rule : Rule = tup._1
       val plan : Plan = tup._2
@@ -131,24 +119,18 @@ class Solver {
       plan.go(program.translator)
     })
 
-    var newFacts : Int = program.latMapGroups.map(_.outputLatMap.numFacts()).sum
+    var done = false
 
-    while (newFacts  > 0){
+    while (!done) {
+      done = true
       // swap inputLatMaps with outputLatMaps
       program.latMapGroups.foreach(_.setInput())
-//      printFacts(latmap.Input)
-      for (latmapGroup : LatMapGroup <- program.latMapGroups if latmapGroup.inputLatMap.numFacts() > 0){
-        regPlans.getOrElse(latmapGroup, Seq()).foreach((tup) => {
-          val plan: Plan = tup._2
+      for (latmapGroup : LatMapGroup <- program.latMapGroups if latmapGroup.inputLatMap.numFacts > 0){
+        regPlans.getOrElse(latmapGroup, Seq()).foreach {case (rule, plan) =>
+          done = false
           plan.go(program.translator)
-
-        })
+        }
       }
-//      printFacts(latmap.Output)
-
-      newFacts = program.latMapGroups.map(_.outputLatMap.numFacts()).sum
     }
-//    printFacts(latmap.True)
-
   }
 }

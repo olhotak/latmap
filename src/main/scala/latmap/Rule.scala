@@ -27,7 +27,7 @@ trait RuleElement {
     * will make all variables in the `variables` set bound. regAlloc is the mapping of variables
     * to registers in the evaluation context.
     */
-  def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latMap : Option[LatMapType] = None): PlanElement
+  def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement
 
   /** Produces 2 WriteToLatMap PlanElements for when this rule element is the head of a rule
     */
@@ -39,11 +39,10 @@ trait RuleElement {
 
 /**
   * RuleElement for a rule involving a single lattice element. e.g. Dist(a, b, d)
-  * @param _latmapGroup The LatMapGroup of the lattice element.
+  * @param latmapGroup The LatMapGroup of the lattice element.
   * @param vars The variables in the body of the rule.
   */
-class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRule : Boolean) extends RuleElement {
-  val latmapGroup = _latmapGroup
+class LatmapRuleElement(val latmapGroup: LatMapGroup, vars: Seq[Variable], constRule : Boolean) extends RuleElement {
   private val keyVars = vars.filter(_.isInstanceOf[KeyVariable])
   private val latVars = vars.filter(_.isInstanceOf[LatVariable])
   assert(latVars.size == 1)
@@ -52,7 +51,7 @@ class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRul
   override def variables: Seq[Variable] = vars
   def findIndex(boundVars: Set[Variable]): Index = {
     val boundKeys = keyVars.toSet.intersect(boundVars)
-    latmapGroup.get(latmap.True).selectIndex(boundKeys.map(vars.indexOf(_)))
+    latmapGroup.trueLatMap.selectIndex(boundKeys.map(vars.indexOf(_)))
   }
   override def costEstimate(boundVars: Set[Variable]): Int = {
     val index = findIndex(boundVars)
@@ -60,34 +59,28 @@ class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRul
     cost += keyVars.filterNot(boundVars.contains(_)).size
     cost
   }
-  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = Some(True)): PlanElement = {
-    latmapType match {
-      case Some(latmap.Input) =>
-        assert(boundVars.isEmpty)
-        InputPlanElement(keyVars.map(regAlloc).toArray, regAlloc(latVar), _latmapGroup)
+
+  def inputPlanElement(regAlloc: Variable=>Int): PlanElement = {
+    InputPlanElement(keyVars.map(regAlloc).toArray, regAlloc(latVar), latmapGroup)
+  }
+
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
+    latmapGroup.trueLatMap.lattice match {
+      case BoolLattice =>
+        BoolIndexScan(
+          findIndex(boundVars),
+          inputRegs = keyVars.map(regAlloc).toArray,
+          outputRegs = keyVars.map(regAlloc).toArray
+        )
       case _ =>
-        /*
-        if .selectIndex == NaiveIndex and we want to create our own index
-          make a better index
-          call Index scan with better index
-         */
-        latmapGroup.get(latmapType.get).lattice match {
-          case BoolLattice =>
-            BoolIndexScan(
-              findIndex(boundVars),
-              inputRegs = keyVars.map(regAlloc).toArray,
-              outputRegs = keyVars.map(regAlloc).toArray
-            )
-          case _ =>
-            IndexScan(
-              //latmap.selectIndex(vars.zipWithIndex.collect { case (e, i) if boundVars.contains(e) => i }.toSet),
-              latmapGroup.get(latmapType.get).selectIndex(boundVars.intersect(keyVars.toSet).map(vars.indexOf(_))),
-              mergeLat = boundVars.contains(latVar) && !(latVar.asInstanceOf[LatVariable].lattice == BoolLattice),
-              inputRegs = keyVars.map(regAlloc).toArray,
-              outputRegs = keyVars.map(regAlloc).toArray,
-              outputLatReg = regAlloc(latVar)
-            )
-        }
+        IndexScan(
+          //latmap.selectIndex(vars.zipWithIndex.collect { case (e, i) if boundVars.contains(e) => i }.toSet),
+          latmapGroup.trueLatMap.selectIndex(boundVars.intersect(keyVars.toSet).map(vars.indexOf(_))),
+          mergeLat = boundVars.contains(latVar) && !(latVar.asInstanceOf[LatVariable].lattice == BoolLattice),
+          inputRegs = keyVars.map(regAlloc).toArray,
+          outputRegs = keyVars.map(regAlloc).toArray,
+          outputLatReg = regAlloc(latVar)
+        )
     }
   }
   override def writeToLatMap(regAlloc: Variable=>Int): PlanElement = {
@@ -112,7 +105,7 @@ class KeyConstantRuleElement(keyVar: Variable, const : Any) extends RuleElement 
   override def costEstimate(boundVars: Set[Variable]): Int = {
     0
   }
-  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
     if (boundVars.contains(keyVar))
       KeyConstantFilter(
        regAlloc(keyVar),
@@ -133,7 +126,7 @@ class LatConstantRuleElement(latVar: LatVariable, const : Any, lattice : Lattice
   override def costEstimate(boundVars: Set[Variable]): Int = {
     0 // TODO: good cost estimate
   }
-  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
     // TODO: split up, using boundvars
     if (lattice == BoolLattice) {
       if (const == true) {
@@ -185,7 +178,7 @@ class FilterFnRuleElement(function: AnyRef, vars: Seq[Variable])
   override def costEstimate(boundVars: Set[Variable]): Int = {
     if (vars.toSet.subsetOf(boundVars)) 0 else Int.MaxValue
   }
-  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
     assert(vars.toSet.subsetOf(boundVars))
     FilterFn(vars.map(regAlloc).toArray, function)
   }
@@ -199,7 +192,7 @@ class TransferFnRuleElement(function: AnyRef, vars: Seq[Variable], outputVar: Va
   override def costEstimate(boundVars: Set[Variable]): Int = {
     if (vars.toSet.subsetOf(boundVars)) 0 else Int.MaxValue
   }
-  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType]): PlanElement = {
+  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
     assert(vars.toSet.subsetOf(boundVars))
     val lattice = outputVar match {
       case k: KeyVariable => None
