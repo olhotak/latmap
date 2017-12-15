@@ -20,9 +20,12 @@ trait API {
   trait APIRelation {
     def apply(terms: Term*): Atom
     def numFacts(): Int
+    def dump(): Unit
   }
-  def relation(arity: Int, lattice: Lattice): Relation
-  def relation(arity: Int): Relation
+  def relation(arity: Int, lattice: Lattice, name: String): Relation
+  def relation(arity: Int, lattice: Lattice): Relation = relation(arity, lattice, "")
+  def relation(arity: Int, name: String): Relation = relation(arity, BoolLattice, name)
+  def relation(arity: Int): Relation = relation(arity, "")
 
   trait APIBodyElem
   trait APIAtom extends APIBodyElem {

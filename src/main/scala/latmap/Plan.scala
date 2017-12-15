@@ -353,10 +353,10 @@ case class WriteToLatMap(inputRegs: Array[Int],
             s" ${evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem]}" + " to :" + outputLatMap)
         }*/
       case Some(elem) =>
-        outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)), putElem)
+        outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)), elem.asInstanceOf[outputLatMap.lattice.Elem])
 
-//        @elidable(FINE) def debugMsg = println(s"Writing ${inputRegs.map((i) => evalContext.translator.fromInt(evalContext.keyRegs(i))) mkString (" ")} ->" +
-//          s" ${putElem}" + " to :" + outputLatMap)
+        @elidable(FINE) def debugMsg = println(s"Writing ${inputRegs.map((i) => evalContext.translator.fromInt(evalContext.keyRegs(i))) mkString (" ")} ->" +
+          s" ${putElem}" + " to :" + outputLatMap)
 //        debugMsg
 
     }

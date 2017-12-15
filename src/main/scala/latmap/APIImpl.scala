@@ -17,8 +17,8 @@ class ProgramImpl extends Program {
   case class LatVariableImpl(id: Int, lattice: Lattice) extends BaseVariable(id) with LatVariable {
   }
   trait BodyElem extends ProgBodyElem
-  case class Atom(latMap: LatMap[_ <: Lattice], keyVars: Seq[KeyVariable], latVar: LatVariable) extends ProgAtom with BodyElem {
-    override def toString = latMap + keyVars.mkString("(", ", ", ")") + "[" + latVar + "]"
+  case class Atom(latMapGroup: LatMapGroup, keyVars: Seq[KeyVariable], latVar: LatVariable) extends ProgAtom with BodyElem {
+    override def toString = latMapGroup + keyVars.mkString("(", ", ", ")") + "[" + latVar + "]"
   }
   case class Const(variable: Variable, constant: Any) extends ProgConst with BodyElem {
     override def toString = variable + " := " + constant
@@ -30,10 +30,12 @@ class ProgramImpl extends Program {
     override def toString = result + " := " + function + arguments.mkString("(", ", ", ")")
   }
 
-  def addIndex(latMap: LatMap[_ <: Lattice], indices: Set[Int]): Unit = latMap.addIndex(new HashMapIndex(latMap, indices))
+  def addIndex(latMapGroup: LatMapGroup, indices: Set[Int]): Unit = latMapGroup.trueLatMap.addIndex(new HashMapIndex(latMapGroup.trueLatMap, indices))
 
   val rules = mutable.ArrayBuffer[Rule]()
+  val latMapGroups = mutable.Set[LatMapGroup]()
   override def toString = rules.mkString("\n")
+  val translator = new Translator()
 }
 
 class APIImpl extends API {
@@ -60,22 +62,24 @@ class APIImpl extends API {
     LatVariable(nextId, lattice)
   }
 
-  case class Relation(arity: Int, lattice: Lattice) extends APIRelation {
-    val latMap = new SimpleLatMap(lattice, arity)
+  class Relation(arity: Int, lattice: Lattice, name: String) extends APIRelation {
+    val latMapGroup = new LatMapGroup(arity, lattice, name)
     def apply(vars: Term*): Atom = {
       val newVars = if(lattice eq BoolLattice) vars :+ Constant(BoolLattice.top) else vars
-      Atom(latMap, newVars.dropRight(1), newVars.last)
+      Atom(latMapGroup, newVars.dropRight(1), newVars.last)
     }
 
-    def numFacts(): Int = latMap.numFacts()
+    def numFacts(): Int = {
+      latMapGroup.trueLatMap.numFacts()
+    }
+
+    def dump(): Unit = latMapGroup.trueLatMap.dump(program.translator)
   }
 
-  def relation(arity: Int, lattice: Lattice): Relation = {
-    new Relation(arity, lattice)
-  }
-
-  def relation(arity: Int): Relation = {
-    new Relation(arity, BoolLattice)
+  def relation(arity: Int, lattice: Lattice, name: String): Relation = {
+    val ret = new Relation(arity, lattice, name)
+    program.latMapGroups += ret.latMapGroup
+    ret
   }
 
   trait BodyElem extends APIBodyElem {
@@ -93,11 +97,11 @@ class APIImpl extends API {
     }).distinct
   }
 
-  case class Atom(latMap: LatMap[_ <: Lattice], keyTerms: Seq[Term], latTerm: Term) extends BodyElem with APIAtom {
+  case class Atom(latMapGroup: LatMapGroup, keyTerms: Seq[Term], latTerm: Term) extends BodyElem with APIAtom {
     override def convert(termToVar: (Term, Option[Lattice]) => program.Variable): program.Atom =
-      program.Atom(latMap,
+      program.Atom(latMapGroup,
         (keyTerms map ((t) => termToVar(t, None))).map(_.asInstanceOf[program.KeyVariable]),
-        termToVar(latTerm, Some(latMap.lattice)).asInstanceOf[program.LatVariable])
+        termToVar(latTerm, Some(latMapGroup.lattice)).asInstanceOf[program.LatVariable])
 
     def :-(atoms: BodyElem*): Unit = {
       val constVars = mutable.Map[Any, Variable]()
@@ -128,7 +132,7 @@ class APIImpl extends API {
         }
       }.toSet
 
-      program.addIndex(latMap, indices)
+      program.addIndex(latMapGroup, indices)
     }
   }
 

@@ -3,12 +3,12 @@ package latmap
 import scala.annotation._, elidable._
 
 class Solver {
-  def solve(program: Program) = {
+  def solve(program: Program): Unit = {
     val planner = new Planner()
     var keyVarMap = scala.collection.mutable.Map[program.KeyVariable, KeyVariable]()
     var latVarMap = scala.collection.mutable.Map[program.LatVariable, LatVariable]()
-    var latMapMap = scala.collection.mutable.Map[LatMap[_ <: Lattice], LatMapGroup]()
     var constVariables = scala.collection.mutable.ListBuffer.empty[program.Const]
+    var latMapGroups = Set[LatMapGroup]()
 
     var keyId : Int = 0
     var latId : Int = 0
@@ -40,29 +40,25 @@ class Solver {
         generateLatVariable(rule.head.latVar)
 
       // body elements
-      rule.body.foreach((bodyElem) => {
-        bodyElem match {
-          case s: program.Atom =>
-            s.keyVars.foreach((v) =>
-                generateKeyVariable(v)
-            )
-            generateLatVariable(s.latVar)
-          case _ =>
-        }
-      })
+      rule.body.foreach {
+        case s: program.Atom =>
+          s.keyVars.foreach((v) =>
+            generateKeyVariable(v)
+          )
+          generateLatVariable(s.latVar)
+        case _ =>
+      }
     })
 
     // pass 2 : generate key variables for all non-lat constants
     program.rules.foreach((rule) => {
-      rule.body.foreach((bodyElem) => {
-        bodyElem match {
-          case s: program.Const => s.variable match {
-            case k: program.KeyVariable => generateKeyVariable(k)
-            case _ =>
-          }
+      rule.body.foreach {
+        case s: program.Const => s.variable match {
+          case k: program.KeyVariable => generateKeyVariable(k)
           case _ =>
         }
-      })
+        case _ =>
+      }
     })
 
 
@@ -70,45 +66,41 @@ class Solver {
     val backendRules : Seq[Rule] = program.rules.map((rule) =>
         Rule(
           new LatmapRuleElement(
-            latMapMap.getOrElseUpdate(rule.head.latMap, new LatMapGroup(rule.head.latMap)),
+            rule.head.latMapGroup,
             rule.head.keyVars.map((pv) => keyVarMap(pv)) :+ latVarMap(rule.head.latVar),
             rule.body.forall((e) => e.isInstanceOf[program.Const])
           ),
-          rule.body.map((ruleElement) =>
-            ruleElement match {
-              case const: program.Const => const.variable match {
-                case k: program.KeyVariable => new KeyConstantRuleElement(
-                  keyVarMap(k),
-                  const.constant
-                )
-                case l: program.LatVariable => new LatConstantRuleElement(
-                  latVarMap(l),
-                  const.constant,
-                  l.lattice
-                )
-              }
-              case atom: program.Atom =>
-                new LatmapRuleElement(
-                  latMapMap.getOrElseUpdate(atom.latMap, new LatMapGroup(atom.latMap)),
-                  atom.keyVars.map((pv) => keyVarMap(pv)) :+ latVarMap(atom.latVar),
-                  false
-                )
-              case filter: program.Filter =>
-                new FilterFnRuleElement(filter.function,
-                  filter.arguments.map {
-                    case k: program.KeyVariable => keyVarMap(k)
-                    case l: program.LatVariable => latVarMap(l)
-                  }
-                )
-              case transfer: program.Transfer =>
-                new TransferFnRuleElement(transfer.function, convertVariables(transfer.arguments), convertVariable(transfer.result))
-
+          rule.body.map {
+            case const: program.Const => const.variable match {
+              case k: program.KeyVariable => new KeyConstantRuleElement(
+                keyVarMap(k),
+                const.constant
+              )
+              case l: program.LatVariable => new LatConstantRuleElement(
+                latVarMap(l),
+                const.constant,
+                l.lattice
+              )
             }
-          ).toList
+            case atom: program.Atom =>
+              new LatmapRuleElement(
+                atom.latMapGroup,
+                atom.keyVars.map((pv) => keyVarMap(pv)) :+ latVarMap(atom.latVar),
+                false
+              )
+            case filter: program.Filter =>
+              new FilterFnRuleElement(filter.function,
+                filter.arguments.map {
+                  case k: program.KeyVariable => keyVarMap(k)
+                  case l: program.LatVariable => latVarMap(l)
+                }
+              )
+            case transfer: program.Transfer =>
+              new TransferFnRuleElement(transfer.function, convertVariables(transfer.arguments), convertVariable(transfer.result))
+
+          }.toList
         )
     )
-    val groupLatMaps : Seq[LatMapGroup] = latMapMap.values.toSeq
-
     val constPlans: Seq[(Rule,Plan)] = backendRules
       .filter((rule) => rule.bodyElements.forall(!_.isInstanceOf[LatmapRuleElement]))
       .map((rule) => (rule, planner.plan(rule)))
@@ -120,16 +112,12 @@ class Solver {
         })
       ).groupBy(_._1).map { case (k,v) => (k,v.map(_._2))}
 
-    val myTranslator = new Translator()
     @elidable(FINE)
     def printFacts(latmapType : LatMapType) : Unit = {
       println("Printing " + latmapType)
-      groupLatMaps.foreach((g) => {
+      program.latMapGroups.foreach((g) => {
         println("latmap: " + g.get(latmapType))
-        g.get(latmapType).keyIterator.foreach((key) => {
-          val out = key.map((i) => myTranslator.fromInt(i)).mkString(" ") + " : " + g.get(latmapType).get(key)
-          println(out)
-        })
+        g.get(latmapType).dump(program.translator)
         println()
         println()
 
@@ -140,24 +128,25 @@ class Solver {
       val rule : Rule = tup._1
       val plan : Plan = tup._2
 
-      plan.go(myTranslator)
+      plan.go(program.translator)
     })
-    var newFacts : Int = groupLatMaps.map(_.outputLatMap.numFacts()).sum
+
+    var newFacts : Int = program.latMapGroups.map(_.outputLatMap.numFacts()).sum
 
     while (newFacts  > 0){
       // swap inputLatMaps with outputLatMaps
-      groupLatMaps.foreach(_.setInput())
+      program.latMapGroups.foreach(_.setInput())
 //      printFacts(latmap.Input)
-      for (latmapGroup : LatMapGroup <- groupLatMaps if latmapGroup.inputLatMap.numFacts() > 0){
+      for (latmapGroup : LatMapGroup <- program.latMapGroups if latmapGroup.inputLatMap.numFacts() > 0){
         regPlans.getOrElse(latmapGroup, Seq()).foreach((tup) => {
           val plan: Plan = tup._2
-          plan.go(myTranslator)
+          plan.go(program.translator)
 
         })
       }
 //      printFacts(latmap.Output)
 
-      newFacts = groupLatMaps.map(_.outputLatMap.numFacts()).sum
+      newFacts = program.latMapGroups.map(_.outputLatMap.numFacts()).sum
     }
 //    printFacts(latmap.True)
 

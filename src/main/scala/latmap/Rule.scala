@@ -50,12 +50,20 @@ class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRul
   private val latVar = latVars.head
 
   override def variables: Seq[Variable] = vars
+  def findIndex(boundVars: Set[Variable]): Index = {
+    val boundKeys = keyVars.toSet.intersect(boundVars)
+    latmapGroup.get(latmap.True).selectIndex(boundKeys.map(vars.indexOf(_)))
+  }
   override def costEstimate(boundVars: Set[Variable]): Int = {
-    0 // TODO: good cost estimate
+    val index = findIndex(boundVars)
+    var cost = if(index.isInstanceOf[NaiveIndex]) 1000 else 100
+    cost += keyVars.filterNot(boundVars.contains(_)).size
+    cost
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = Some(True)): PlanElement = {
     latmapType match {
       case Some(latmap.Input) =>
+        assert(boundVars.isEmpty)
         InputPlanElement(keyVars.map(regAlloc).toArray, regAlloc(latVar), _latmapGroup)
       case _ =>
         /*
@@ -66,7 +74,7 @@ class LatmapRuleElement(_latmapGroup: LatMapGroup, vars: Seq[Variable], constRul
         latmapGroup.get(latmapType.get).lattice match {
           case BoolLattice =>
             BoolIndexScan(
-              latmapGroup.get(latmapType.get).selectIndex(boundVars.intersect(keyVars.toSet).map(vars.indexOf(_))),
+              findIndex(boundVars),
               inputRegs = keyVars.map(regAlloc).toArray,
               outputRegs = keyVars.map(regAlloc).toArray
             )
@@ -102,7 +110,7 @@ class KeyConstantRuleElement(keyVar: Variable, const : Any) extends RuleElement 
 
   override def variables: Seq[Variable] = Seq(keyVar)
   override def costEstimate(boundVars: Set[Variable]): Int = {
-    0 // TODO: good cost estimate
+    0
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
     if (boundVars.contains(keyVar))
@@ -178,6 +186,7 @@ class FilterFnRuleElement(function: AnyRef, vars: Seq[Variable])
     if (vars.toSet.subsetOf(boundVars)) 0 else Int.MaxValue
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType] = None): PlanElement = {
+    assert(vars.toSet.subsetOf(boundVars))
     FilterFn(vars.map(regAlloc).toArray, function)
   }
 }
@@ -191,6 +200,7 @@ class TransferFnRuleElement(function: AnyRef, vars: Seq[Variable], outputVar: Va
     if (vars.toSet.subsetOf(boundVars)) 0 else Int.MaxValue
   }
   override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int, latmapType : Option[LatMapType]): PlanElement = {
+    assert(vars.toSet.subsetOf(boundVars))
     val lattice = outputVar match {
       case k: KeyVariable => None
       case l: LatVariable => Some(l.lattice)

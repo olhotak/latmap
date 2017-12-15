@@ -7,7 +7,8 @@ package latmap
 import scala.collection.mutable
 import java.util.Arrays
 
-class SimpleLatMap[T <: Lattice](val lattice: T, val arity : Int) extends LatMap[T] {
+class SimpleLatMap[T <: Lattice](val lattice: T, val arity : Int, val name: String = "") extends LatMap[T] {
+  override def toString: String = name
   val rows = mutable.Map.empty[mutable.WrappedArray[Int], lattice.Elem]
 
   override def get(keys: Array[Int]): lattice.Elem = {
@@ -28,9 +29,11 @@ class SimpleLatMap[T <: Lattice](val lattice: T, val arity : Int) extends LatMap
   override def put(keys: Array[Int], elem: lattice.Elem): Option[lattice.Elem] = {
     rows.get(keys) match {
       case None =>
-        rows.put(Arrays.copyOf(keys, keys.length), elem)
-        indexes.foreach(_.put(keys))
-        Some(elem)
+        if(elem == lattice.bottom) None else {
+          rows.put(Arrays.copyOf(keys, keys.length), elem)
+          indexes.foreach(_.put(keys))
+          Some(elem)
+        }
       case Some(old) =>
         if (elem != old){
           val newLatElem = lattice.lub(elem, get(keys))
@@ -57,4 +60,12 @@ class SimpleLatMap[T <: Lattice](val lattice: T, val arity : Int) extends LatMap
   def writePhase1(): Unit = {}
   def betweenWritePhases(): Unit = {}
   def writePhase2(): Unit = {}
+
+  override def dump(translator: Translator): Unit = {
+    keyIterator.foreach((key) => {
+      var out = key.map((i) => translator.fromInt(i)).mkString(" ")
+      if(lattice != BoolLattice) out += " : " + get(key)
+      println(out)
+    })
+  }
 }

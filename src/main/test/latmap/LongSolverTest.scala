@@ -8,19 +8,19 @@ class LongSolverTest extends FunSuite {
     import api._
 
     // Inputs
-    val AddrOf = relation(2)
-    val Copy = relation(2)
-    val Store = relation(3)
-    val Load = relation(3)
-    val CFG = relation(2)
-    val Multi = relation(1)
-    val Phi = relation(1)
-    val Clear = relation(1)
-    val FIStore = relation(3)
-    val FILoad = relation(3)
+    val AddrOf = relation(2, "AddrOf")
+    val Copy = relation(2, "Copy")
+    val Store = relation(3, "Store")
+    val Load = relation(3, "Load")
+    val CFG = relation(2, "CFG")
+    val Multi = relation(1, "Multi")
+    val Phi = relation(1, "Phi")
+    val Clear = relation(1, "Clear")
+    val FIStore = relation(3, "FIStore")
+    val FILoad = relation(3, "FILoad")
 
     // Outputs
-    val Pt = relation(2)
+    val Pt = relation(2, "Pt")
 
     val pvar = variable()
     val a = variable()
@@ -51,14 +51,14 @@ class LongSolverTest extends FunSuite {
     Pt(a,b).addIndex(a,b)
     Pt(a,b).addIndex(a)
 
-    val SU = relation(2, SULattice)
+    val SU = relation(2, SULattice, "SU")
     SU(a,b,t).addIndex(a,b)
     SU(a,b,t).addIndex(a)
 
-    val PtH = relation(2)
+    val PtH = relation(2, "PtH")
     PtH(a,b).addIndex(a,b)
     PtH(a,b).addIndex(a)
-    val Kill = relation(1, SULattice)
+    val Kill = relation(1, SULattice, "Kill")
 
     // Rules
     // ----------
@@ -165,6 +165,6 @@ class LongSolverTest extends FunSuite {
       assert(program.Pt.numFacts() == ptCount)
     }
   }
-  llvmTest("470.lbm", 469)
-  llvmTest("429.mcf", 1867)
+//  llvmTest("470.lbm", 469)
+//  llvmTest("429.mcf", 1867)
 }

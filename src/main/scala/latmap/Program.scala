@@ -4,7 +4,7 @@ trait Program {
   trait Variable
   trait ProgBodyElem
   trait ProgAtom extends ProgBodyElem {
-    def latMap: LatMap[_ <: Lattice]
+    def latMapGroup: LatMapGroup
     def keyVars: Seq[KeyVariable]
     def latVar: LatVariable
   }
@@ -39,5 +39,7 @@ trait Program {
   type Rule <: ProgRule
 
   def rules: Seq[Rule]
-  def addIndex(latMap: LatMap[_ <: Lattice], indices: Set[Int]): Unit
+  def latMapGroups: Traversable[LatMapGroup]
+  def addIndex(latMapGroup: LatMapGroup, indices: Set[Int]): Unit
+  def translator: Translator
 }

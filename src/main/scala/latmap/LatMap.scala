@@ -79,4 +79,5 @@ trait LatMap[T <: Lattice] {
   }
 
   def addIndex(index: Index): Unit
+  def dump(translator: Translator): Unit = ???
 }
