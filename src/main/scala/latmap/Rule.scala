@@ -87,10 +87,11 @@ class LatmapRuleElement(val latmapGroup: LatMapGroup, vars: Seq[Variable], const
       WriteToLatMap(
         keyVars.map(regAlloc).toArray,
         regAlloc(latVar),
-        latmapGroup,
-        constRule
+        latmapGroup
       )
   }
+
+  override def toString: String = s"$latmapGroup(${variables.mkString(", ")})"
 }
 
 
@@ -118,6 +119,7 @@ class KeyConstantRuleElement(keyVar: Variable, const : Any) extends RuleElement 
       )
   }
 
+  override def toString: String = s"$keyVar := $const"
 }
 
 class LatConstantRuleElement(latVar: LatVariable, const : Any, lattice : Lattice) extends RuleElement {
@@ -150,6 +152,7 @@ class LatConstantRuleElement(latVar: LatVariable, const : Any, lattice : Lattice
     }
   }
 
+  override def toString: String = s"$latVar := $const"
 }
 /**
   * RuleElement for a rule representing a relation.
@@ -182,6 +185,7 @@ class FilterFnRuleElement(function: AnyRef, vars: Seq[Variable])
     assert(vars.toSet.subsetOf(boundVars))
     FilterFn(vars.map(regAlloc).toArray, function)
   }
+  override def toString: String = "FilterFn"
 }
 /**
   * RuleElement for a transfer function.
@@ -200,4 +204,5 @@ class TransferFnRuleElement(function: AnyRef, vars: Seq[Variable], outputVar: Va
     }
     TransferFn(vars.map(regAlloc).toArray, regAlloc(outputVar), function, lattice)
   }
+  override def toString: String = "TransferFn"
 }

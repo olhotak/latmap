@@ -14,6 +14,8 @@ case class Plan(planElements: PlanElement, rule: Rule) {
 
     planElements.go(evalContext)
   }
+
+  override def toString: String = rule + "\n" + planElements
 }
 
 /**
@@ -77,6 +79,8 @@ case class KeyScan(index: Index,
       next.go(evalContext)
     }
   }
+
+  override def toString: String = s"KeyScan $index\n$next"
 }
 
 /**
@@ -89,6 +93,8 @@ case class KeyConstantEval(keyReg : Int,
     evalContext.keyRegs(keyReg) = evalContext.translator.toInt(const)
     next.go(evalContext)
   }
+
+  override def toString: String = s"KeyConstantEval $const\n$next"
 }
 
 /**
@@ -102,6 +108,8 @@ case class KeyConstantFilter(keyReg : Int,
       next.go(evalContext)
     }
   }
+
+  override def toString: String = s"KeyConstantFilter $const\n$next"
 }
 // TODO: I combined the two
 // TODO: Don't create these for BoolLattice, const == true
@@ -112,6 +120,8 @@ case class LatConstantEval(latReg : Int, const : Any, lattice : Lattice) extends
     if (const != lattice.bottom)
       next.go(evalContext)
   }
+
+  override def toString: String = s"LatConstantEval $const\n$next"
 }
 
 case class LatConstantFilter(latReg : Int, const : Any, lattice : Lattice) extends PlanElement {
@@ -128,6 +138,8 @@ case class LatConstantFilter(latReg : Int, const : Any, lattice : Lattice) exten
     if (newLat != lattice.bottom)
       next.go(evalContext)
   }
+
+  override def toString: String = s"LatConstantFilter $const\n$next"
 }
 
 /**
@@ -170,6 +182,8 @@ case class BoolIndexScan(index: Index,
       next.go(evalContext)
     }
   }
+
+  override def toString: String = s"BoolIndexScan $index\n$next"
 }
 
 /**
@@ -223,6 +237,8 @@ case class IndexScan(index: Index,
         next.go(evalContext)
     }
   }
+
+  override def toString: String = s"IndexScan $index\n$next"
 }
 case class InputPlanElement(outputRegs: Array[Int],
                             outputLatReg: Int,
@@ -258,6 +274,8 @@ case class InputPlanElement(outputRegs: Array[Int],
         next.go(evalContext)
     }
   }
+
+  override def toString: String = s"InputPlanElement $latmapGroup\n$next"
 }
 
 /**
@@ -298,6 +316,8 @@ case class TransferFn(inputRegs: Array[Int],
     }
 
   }
+
+  override def toString: String = s"TransferFn\n$next"
 }
 case class FilterFn(inputRegs: Array[Int],
                      function: AnyRef) extends PlanElement {
@@ -321,6 +341,8 @@ case class FilterFn(inputRegs: Array[Int],
     }
 
   }
+
+  override def toString: String = s"FilterFn\n$next"
 }
 /**
   * Writes a (key, value) pair specified by (inputRegs, inputLatReg) to
@@ -328,8 +350,8 @@ case class FilterFn(inputRegs: Array[Int],
   */
 case class WriteToLatMap(inputRegs: Array[Int],
                          inputLatReg: Int,
-                         latmapGroup : LatMapGroup,
-                         constRule : Boolean) extends PlanElement {
+                         latmapGroup : LatMapGroup
+                        ) extends PlanElement {
   require(inputRegs.length == latmapGroup.arity)
   def go(evalContext: EvalContext) = {
     val trueLatMap = latmapGroup.trueLatMap
@@ -365,6 +387,7 @@ case class WriteToLatMap(inputRegs: Array[Int],
     if (next != null)
       next.go(evalContext)
   }
+  override def toString: String = s"WriteToLatMap $latmapGroup\n$next"
 }
 
 /**
@@ -376,6 +399,8 @@ case class NoOp() extends PlanElement {
   override def go(evalContext: EvalContext): Unit = {
     next.go(evalContext)
   }
+
+  override def toString: String = s"NoOp\n$next"
 }
 
 /**
@@ -385,4 +410,5 @@ case class NoOp() extends PlanElement {
   */
 case class DeadEnd() extends PlanElement {
   override def go(evalContext: EvalContext): Unit = {}
+  override def toString: String = s"DeadEnd\n$next"
 }
