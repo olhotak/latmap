@@ -286,10 +286,10 @@ case class InputPlanElement(outputRegs: Array[Int],
   * @param outputReg
   * @param function
   */
-case class TransferFn(inputRegs: Array[Int],
-                     outputReg: Int,
-                     function: AnyRef,
-                      lattice: Option[Lattice]) extends PlanElement {
+case class Function(inputRegs: Array[Int],
+                    outputReg: Int,
+                    function: AnyRef,
+                    lattice: Option[Lattice]) extends PlanElement {
   def go(evalContext: EvalContext) = {
     val args = inputRegs.map((reg) => {
       if (reg >= 1000)
@@ -318,31 +318,6 @@ case class TransferFn(inputRegs: Array[Int],
   }
 
   override def toString: String = s"TransferFn\n$next"
-}
-case class FilterFn(inputRegs: Array[Int],
-                     function: AnyRef) extends PlanElement {
-  def go(evalContext: EvalContext) = {
-    val args = inputRegs.map((reg) => {
-      if (reg >= 1000)
-        evalContext.latRegs(reg - 1000)
-      else
-        evalContext.translator.fromInt(evalContext.keyRegs(reg))
-    })
-    val result : Boolean = args.size match {
-      case 0 => function.asInstanceOf[Function0[Boolean]]()
-      case 1 => function.asInstanceOf[Function1[Any, Boolean]](args(0))
-      case 2 => function.asInstanceOf[Function2[Any, Any, Boolean]](args(0), args(1))
-      case 3 => function.asInstanceOf[Function3[Any, Any, Any, Boolean]](args(0), args(1), args(2))
-      case 4 => function.asInstanceOf[Function4[Any, Any, Any, Any, Boolean]](args(0), args(1), args(2), args(3))
-      case 5 => function.asInstanceOf[Function5[Any, Any, Any, Any, Any, Boolean]](args(0), args(1), args(2), args(3), args(4))
-    }
-    if (result){
-      next.go(evalContext)
-    }
-
-  }
-
-  override def toString: String = s"FilterFn\n$next"
 }
 /**
   * Writes a (key, value) pair specified by (inputRegs, inputLatReg) to

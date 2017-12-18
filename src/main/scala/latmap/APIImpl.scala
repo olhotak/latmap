@@ -23,10 +23,7 @@ class ProgramImpl extends Program {
   case class Const(variable: Variable, constant: Any) extends ProgConst with BodyElem {
     override def toString = variable + " := " + constant
   }
-  case class Filter(function: AnyRef, arguments: Seq[Variable]) extends ProgFilter with BodyElem {
-    override def toString = function + arguments.mkString("(", ", ", ")")
-  }
-  case class Transfer(result: Variable, function: AnyRef, arguments: Seq[Variable]) extends ProgTransfer with BodyElem {
+  case class Function(result: Variable, function: AnyRef, arguments: Seq[Variable]) extends ProgFunction with BodyElem {
     override def toString = result + " := " + function + arguments.mkString("(", ", ", ")")
   }
 
@@ -69,8 +66,8 @@ class APIImpl extends API {
       Atom(latMapGroup, newVars.dropRight(1), newVars.last)
     }
 
-    def numFacts(): Int = {
-      latMapGroup.trueLatMap.numFacts()
+    def numFacts: Int = {
+      latMapGroup.trueLatMap.numFacts
     }
 
     def dump(): Unit = latMapGroup.trueLatMap.dump(program.translator)
@@ -145,28 +142,25 @@ class APIImpl extends API {
 
   override implicit def anyConst(c: Any): Constant = Constant(c)
 
-  case class Filter(function: AnyRef, arguments: Seq[Term]) extends BodyElem {
-    override def convert(termToVar: (Term, Option[Lattice]) => program.Variable): program.Filter =
-      program.Filter(function, arguments map ((t) => termToVar(t, None)))
-  }
-  def F(f: Function0[Boolean]): BodyElem = Filter(f, Seq())
-  def F[T1](f: Function1[T1, Boolean], t1: Term): BodyElem = Filter(f, Seq(t1))
-  def F[T1,T2](f: Function2[T1, T2, Boolean], t1: Term, t2: Term): BodyElem = Filter(f, Seq(t1, t2))
-  def F[T1,T2,T3](f: Function3[T1, T2, T3, Boolean], t1: Term, t2: Term, t3: Term): BodyElem = Filter(f, Seq(t1, t2, t3))
-  def F[T1,T2,T3,T4](f: Function4[T1, T2, T3, T4, Boolean], t1: Term, t2: Term, t3: Term, t4: Term): BodyElem = Filter(f, Seq(t1, t2, t3, t4))
-  def F[T1,T2,T3,T4,T5](f: Function5[T1, T2, T3, T4, T5, Boolean], t1: Term, t2: Term, t3: Term, t4: Term, t5: Term): BodyElem = Filter(f, Seq(t1, t2, t3, t4, t5))
 
-
-  case class Transfer(result: Variable, function: AnyRef, arguments: Seq[Term]) extends BodyElem {
-    override def convert(termToVar: (Term, Option[Lattice]) => program.Variable): program.Transfer =
-      program.Transfer(termToVar(result, None), function, arguments map ((t) => termToVar(t, None)))
+  case class Function(result: Variable, function: AnyRef, arguments: Seq[Term]) extends BodyElem {
+    override def convert(termToVar: (Term, Option[Lattice]) => program.Variable): program.Function =
+      program.Function(termToVar(result, None), function, arguments map ((t) => termToVar(t, None)))
   }
-  def T[R](r: Variable, f: Function0[R]): BodyElem = Transfer(r, f, Seq())
-  def T[T1,R](r: Variable, f: Function1[T1, R], t1: Term): BodyElem = Transfer(r, f, Seq(t1))
-  def T[T1,T2,R](r: Variable, f: Function2[T1, T2, R], t1: Term, t2: Term): BodyElem = Transfer(r, f, Seq(t1, t2))
-  def T[T1,T2,T3,R](r: Variable, f: Function3[T1, T2, T3, R], t1: Term, t2: Term, t3: Term): BodyElem = Transfer(r, f, Seq(t1, t2, t3))
-  def T[T1,T2,T3,T4,R](r: Variable, f: Function4[T1, T2, T3, T4, R], t1: Term, t2: Term, t3: Term, t4: Term): BodyElem = Transfer(r, f, Seq(t1, t2, t3, t4))
-  def T[T1,T2,T3,T4,T5,R](r: Variable, f: Function5[T1, T2, T3, T4, T5, R], t1: Term, t2: Term, t3: Term, t4: Term, t5: Term): BodyElem = Transfer(r, f, Seq(t1, t2, t3, t4, t5))
+  def T[R](r: Variable, f: Function0[R]): BodyElem = Function(r, f, Seq())
+  def T[T1,R](r: Variable, f: Function1[T1, R], t1: Term): BodyElem = Function(r, f, Seq(t1))
+  def T[T1,T2,R](r: Variable, f: Function2[T1, T2, R], t1: Term, t2: Term): BodyElem = Function(r, f, Seq(t1, t2))
+  def T[T1,T2,T3,R](r: Variable, f: Function3[T1, T2, T3, R], t1: Term, t2: Term, t3: Term): BodyElem = Function(r, f, Seq(t1, t2, t3))
+  def T[T1,T2,T3,T4,R](r: Variable, f: Function4[T1, T2, T3, T4, R], t1: Term, t2: Term, t3: Term, t4: Term): BodyElem = Function(r, f, Seq(t1, t2, t3, t4))
+  def T[T1,T2,T3,T4,T5,R](r: Variable, f: Function5[T1, T2, T3, T4, T5, R], t1: Term, t2: Term, t3: Term, t4: Term, t5: Term): BodyElem = Function(r, f, Seq(t1, t2, t3, t4, t5))
+
+  def F(f: Function0[Boolean]): BodyElem = Function(latVariable(BoolLattice), f, Seq())
+  def F[T1](f: Function1[T1, Boolean], t1: Term): BodyElem = Function(latVariable(BoolLattice), f, Seq(t1))
+  def F[T1,T2](f: Function2[T1, T2, Boolean], t1: Term, t2: Term): BodyElem = Function(latVariable(BoolLattice), f, Seq(t1, t2))
+  def F[T1,T2,T3](f: Function3[T1, T2, T3, Boolean], t1: Term, t2: Term, t3: Term): BodyElem = Function(latVariable(BoolLattice), f, Seq(t1, t2, t3))
+  def F[T1,T2,T3,T4](f: Function4[T1, T2, T3, T4, Boolean], t1: Term, t2: Term, t3: Term, t4: Term): BodyElem = Function(latVariable(BoolLattice), f, Seq(t1, t2, t3, t4))
+  def F[T1,T2,T3,T4,T5](f: Function5[T1, T2, T3, T4, T5, Boolean], t1: Term, t2: Term, t3: Term, t4: Term, t5: Term): BodyElem = Function(latVariable(BoolLattice), f, Seq(t1, t2, t3, t4, t5))
+
 
   def solve() = new Solver().solve(program)
 

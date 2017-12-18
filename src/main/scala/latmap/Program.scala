@@ -16,11 +16,7 @@ trait Program {
     def head: Atom
     def body: Seq[BodyElem]
   }
-  trait ProgFilter extends ProgBodyElem {
-    def function: AnyRef // cast the function to FunctionN, where N is arguments.size
-    def arguments: Seq[Variable]
-  }
-  trait ProgTransfer extends ProgBodyElem {
+  trait ProgFunction extends ProgBodyElem {
     def result: Variable
     def function: AnyRef // cast the function to FunctionN, where N is arguments.size
     def arguments: Seq[Variable]
@@ -34,8 +30,7 @@ trait Program {
   type BodyElem <: ProgBodyElem
   type Atom <: ProgAtom
   type Const <: ProgConst
-  type Filter <: ProgFilter
-  type Transfer <: ProgTransfer
+  type Function <: ProgFunction
   type Rule <: ProgRule
 
   def rules: Seq[Rule]

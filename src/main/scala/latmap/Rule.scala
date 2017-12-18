@@ -1,8 +1,8 @@
 package latmap
 
-trait Variable { val name: AnyRef }
-case class KeyVariable(name: AnyRef) extends Variable
-case class LatVariable(name: AnyRef, lattice: Lattice) extends Variable
+trait Variable { val name: Int }
+case class KeyVariable(name: Int) extends Variable
+case class LatVariable(name: Int, lattice: Lattice) extends Variable
 
 case class Rule(headElement: RuleElement,
                 bodyElements: List[RuleElement]) {
@@ -155,42 +155,9 @@ class LatConstantRuleElement(latVar: LatVariable, const : Any, lattice : Lattice
   override def toString: String = s"$latVar := $const"
 }
 /**
-  * RuleElement for a rule representing a relation.
-  */
-/*
-class RelationRuleElement(latmap: LatMap[_], vars: Seq[Variable]) extends RuleElement {
-  assert(vars.forall(_.isInstanceOf[KeyVariable]))
-
-  override def variables: Seq[Variable] = vars
-  override def costEstimate(boundVars: Set[Variable]): Int = {
-    0 // TODO: good cost estimate
-  }
-  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
-    KeyScan(
-      latmap.selectIndex(boundVars.map(vars.indexOf(_)).filter(_ >= 0)),
-      boundVars.map(regAlloc).toArray,
-      boundVars.map(regAlloc).toArray
-    )
-  }
-
-}
-*/
-class FilterFnRuleElement(function: AnyRef, vars: Seq[Variable])
-  extends RuleElement {
-  override def variables: Seq[Variable] = vars
-  override def costEstimate(boundVars: Set[Variable]): Int = {
-    if (vars.toSet.subsetOf(boundVars)) 0 else Int.MaxValue
-  }
-  override def planElement(boundVars: Set[Variable], regAlloc: Variable=>Int): PlanElement = {
-    assert(vars.toSet.subsetOf(boundVars))
-    FilterFn(vars.map(regAlloc).toArray, function)
-  }
-  override def toString: String = "FilterFn"
-}
-/**
   * RuleElement for a transfer function.
   */
-class TransferFnRuleElement(function: AnyRef, vars: Seq[Variable], outputVar: Variable)
+class FunctionRuleElement(function: AnyRef, vars: Seq[Variable], outputVar: Variable)
   extends RuleElement {
   override def variables: Seq[Variable] = vars :+ outputVar
   override def costEstimate(boundVars: Set[Variable]): Int = {
@@ -202,7 +169,7 @@ class TransferFnRuleElement(function: AnyRef, vars: Seq[Variable], outputVar: Va
       case k: KeyVariable => None
       case l: LatVariable => Some(l.lattice)
     }
-    TransferFn(vars.map(regAlloc).toArray, regAlloc(outputVar), function, lattice)
+    Function(vars.map(regAlloc).toArray, regAlloc(outputVar), function, lattice)
   }
-  override def toString: String = "TransferFn"
+  override def toString: String = "Function"
 }
