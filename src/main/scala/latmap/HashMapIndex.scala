@@ -169,5 +169,5 @@ class HashMapIndex(
   }
   
   resize(16)
-  override def toString: String = s"HashMapIndex $latticeMap"
+  override def toString: String = s"HashMapIndex $latticeMap($positionString)"
 }

@@ -46,4 +46,6 @@ trait Index {
     * It lets the index resize to accomodate the upcoming writes.
     */
   def prepareForWrites(number: Int): Unit
+
+  def positionString: String = (0 until latticeMap.arity).map{p => if(positions(p)) 'K' else '.'}.mkString
 }

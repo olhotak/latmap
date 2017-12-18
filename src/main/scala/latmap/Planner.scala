@@ -73,9 +73,9 @@ class Planner {
       var best: RuleElement = null
       var bestCost = Int.MaxValue
       for (elem <- remaining) {
-        val curCost = elem.costEstimate(boundVars.toSet)
-        if (curCost <= bestCost) {
-          bestCost = curCost
+        val elemCost = elem.costEstimate(boundVars.toSet)
+        if (elemCost <= bestCost) {
+          bestCost = elemCost
           best = elem
         }
       }

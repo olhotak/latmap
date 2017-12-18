@@ -75,6 +75,7 @@ trait LatMap[T <: Lattice] {
       best = new NaiveIndex(this, boundVars)
       indexes += best
     }
+    if(boundVars.size == arity) best = new AllKeyIndex(this)
     best
   }
 

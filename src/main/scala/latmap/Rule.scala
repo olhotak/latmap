@@ -1,8 +1,12 @@
 package latmap
 
 trait Variable { val name: Int }
-case class KeyVariable(name: Int) extends Variable
-case class LatVariable(name: Int, lattice: Lattice) extends Variable
+case class KeyVariable(name: Int) extends Variable {
+  override def toString: String = s"K$name"
+}
+case class LatVariable(name: Int, lattice: Lattice) extends Variable {
+  override def toString: String = s"L$name($lattice)"
+}
 
 case class Rule(headElement: RuleElement,
                 bodyElements: List[RuleElement]) {
@@ -55,9 +59,11 @@ class LatmapRuleElement(val latmapGroup: LatMapGroup, vars: Seq[Variable], const
   }
   override def costEstimate(boundVars: Set[Variable]): Int = {
     val index = findIndex(boundVars)
-    var cost = if(index.isInstanceOf[NaiveIndex]) 1000 else 100
-    cost += keyVars.filterNot(boundVars.contains(_)).size
-    cost
+    (index match {
+      case _: NaiveIndex => 1000
+      case _: AllKeyIndex => 0
+      case _: HashMapIndex => 100
+    }) + keyVars.filterNot(boundVars.contains(_)).size
   }
 
   def inputPlanElement(regAlloc: Variable=>Int): PlanElement = {
