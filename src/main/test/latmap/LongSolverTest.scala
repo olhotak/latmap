@@ -32,31 +32,31 @@ class LongSolverTest extends FunSuite {
     val z = latVariable(SULattice)
 
     // Indexes
-    AddrOf(a,b).addIndex(a,b)
-    Copy(a,b).addIndex(a,b)
+//    AddrOf(a,b).addIndex(a,b)
+//    Copy(a,b).addIndex(a,b)
     Copy(a,b).addIndex(a)
-    Store(a,b,k).addIndex(a,b,k)
+//    Store(a,b,k).addIndex(a,b,k)
     Store(a,b,k).addIndex(b)
     Store(a,b,k).addIndex(k)
-    Load(a,b,k).addIndex(a,b,k)
+//    Load(a,b,k).addIndex(a,b,k)
     Load(a,b,k).addIndex(a)
     Load(a,b,k).addIndex(k)
-    CFG(a,b).addIndex(a,b)
+//    CFG(a,b).addIndex(a,b)
     CFG(a,b).addIndex(a)
     CFG(a,b).addIndex(b)
     FIStore(a,b,k).addIndex(a)
     FIStore(a,b,k).addIndex(b)
     FILoad(a,b,k).addIndex(b)
 
-    Pt(a,b).addIndex(a,b)
+//    Pt(a,b).addIndex(a,b)
     Pt(a,b).addIndex(a)
 
     val SU = relation(2, SULattice, "SU")
-    SU(a,b,t).addIndex(a,b)
+//    SU(a,b,t).addIndex(a,b)
     SU(a,b,t).addIndex(a)
 
     val PtH = relation(2, "PtH")
-    PtH(a,b).addIndex(a,b)
+//    PtH(a,b).addIndex(a,b)
     PtH(a,b).addIndex(a)
     val Kill = relation(1, SULattice, "Kill")
 
@@ -167,4 +167,5 @@ class LongSolverTest extends FunSuite {
   }
 //  llvmTest("470.lbm", 469)
 //  llvmTest("429.mcf", 1867)
+//  llvmTest("458.sjeng", 4009)
 }
