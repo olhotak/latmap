@@ -317,7 +317,7 @@ case class Function(inputRegs: Array[Int],
 
   }
 
-  override def toString: String = s"TransferFn\n$next"
+  override def toString: String = s"$outputReg := Function(${inputRegs.mkString(", ")})\n$next"
 }
 /**
   * Writes a (key, value) pair specified by (inputRegs, inputLatReg) to
