@@ -1,16 +1,32 @@
 package latmap
 
+import java.util
+
 import org.scalatest.FunSuite
 import org.scalatest.Matchers
 import java.util.concurrent.atomic.AtomicInteger
+
+import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.Await
 
 class IndexTest extends FunSuite with Matchers {
-    def testIndex(name: String, f: (LatMap[_ <: Lattice], Set[Int]) => Index) = {
-        val latmap = new SimpleLatMap(DistLattice, 5)
+  def getCollection(index: Index, keys: Array[Int]): Array[Array[Int]] = {
+    val buf = new ArrayBuffer[Array[Int]]
+    val it = index.get(keys)
+    while (it.hasNext) {
+      val arr = it.next()
+      buf += util.Arrays.copyOf(arr, arr.length)
+    }
+    buf.toArray
+  }
+    testIndex("NaiveIndex", (a,b) => new NaiveIndex(a,b.toArray))
+    testIndex("HashIndex", (a,b) => new HashIndex(a,b.toArray))
+
+    def testIndex(name: String, f: (AbstractLatMap, Set[Int]) => Index) = {
+        val latmap = new GeneralLatMap(5, DistLattice)
         val lattice = latmap.lattice
         
         val i1 = f(latmap, Set())
@@ -23,18 +39,17 @@ class IndexTest extends FunSuite with Matchers {
         latmap.put(Array(1, 1, 1, 0, 0), lattice.top)
         latmap.put(Array(1, 1, 1, 1, 0), lattice.top)
         latmap.put(Array(1, 1, 1, 1, 1), lattice.top)
-        latmap.flushWrites()
-        
+
         test(s"${name}: i1") {
             TestUtils.testKeysEqual(
-                i1.getCollection(Array(1, 1, 1, 1, 1)),
-                latmap.keyIterator)
+                getCollection(i1, Array(1, 1, 1, 1, 1)),
+                latmap.rowIterator)
         }
             
         test(s"${name}: i2") {
             TestUtils.testKeysEqual(
-                Array(0, 0, 0, 0, 0) +: i2.getCollection(Array(1, 1, 1, 1, 1)),
-                latmap.keyIterator)
+                Array(0, 0, 0, 0, 0) +: getCollection(i2, Array(1, 1, 1, 1, 1)),
+                latmap.rowIterator)
         }
             
         test(s"${name}: i3") {
@@ -42,15 +57,15 @@ class IndexTest extends FunSuite with Matchers {
                 Array(0, 0, 0, 0, 0) +:
                 Array(1, 0, 0, 0, 0) +:
                 Array(1, 1, 0, 0, 0) +:
-                i3.getCollection(Array(1, 1, 1, 1, 1)),
-                latmap.keyIterator)
+                getCollection(i3, Array(1, 1, 1, 1, 1)),
+                latmap.rowIterator)
         }
     }
     
     def stressTest(
             name: String,
-            f1: (LatMap[DistLattice.type], Set[Int]) => Index,
-            f2: (LatMap[DistLattice.type], Set[Int]) => Index,
+            f1: (AbstractLatMap, Set[Int]) => Index,
+            f2: (AbstractLatMap, Set[Int]) => Index,
             writes: Int,
             reads: Int,
             writers1: Int,
@@ -67,7 +82,7 @@ class IndexTest extends FunSuite with Matchers {
                 val v = nextSecond.incrementAndGet()
                 Array(v % period / 2, v % period % 2, v, v, v)
             }
-            val latmap = new SimpleLatMap(DistLattice, 5)
+            val latmap = new GeneralLatMap(5, DistLattice)
             val lattice = latmap.lattice
             
             val i1 = f1(latmap, Set(0, 1))
@@ -89,7 +104,7 @@ class IndexTest extends FunSuite with Matchers {
                 val futures = for (i <- 1 to readers1) yield Future.apply {
                     (1 to (reads / 10 / readers1)) forall { _ =>
                         val k = randomKey()
-                        TestUtils.areKeysEqual(i1.getCollection(k), i2.getCollection(k))
+                        TestUtils.areKeysEqual(getCollection(i1, k), getCollection(i2, k))
                     }
                 }
                 val computation = Future.sequence(futures)
@@ -101,7 +116,8 @@ class IndexTest extends FunSuite with Matchers {
             println(s"$name took approximately $writeTot ms to write and $readTot ms to read")
         }
     }
-    
+
+  /*
     testIndex("NaiveIndex", new NaiveIndex(_, _))
     testIndex("HashMapIndex", new HashMapIndex(_, _))
     stressTest(
@@ -155,75 +171,5 @@ class IndexTest extends FunSuite with Matchers {
             10,
             1,
             10)
-    stressTest(
-            "ConcurrentHashMapIndex/ConcurrentHashMapIndex [perf test]",
-            new ConcurrentHashMapIndex(_, _, 1024),
-            new ConcurrentHashMapIndex(_, _, 1024),
-            200000,
-            100,
-            10,
-            10,
-            10,
-            10)
-    stressTest(
-            "ConcurrentHashMapIndex/ConcurrentHashMapIndex [perf test]",
-            new ConcurrentHashMapIndex(_, _, 1024),
-            new ConcurrentHashMapIndex(_, _, 1024),
-            200000,
-            100,
-            1,
-            10,
-            1,
-            10)
-    stressTest(
-            "NoOpIndex p2",
-            new NoOpIndex(_, _),
-            new NoOpIndex(_, _),
-            200000,
-            100,
-            10,
-            10,
-            10,
-            10)
-    stressTest(
-            "ConcurrentHashMapIndex/ConcurrentHashMapIndex [perf test] 2",
-            new ConcurrentHashMapIndex(_, _, 1024),
-            new ConcurrentHashMapIndex(_, _, 1024),
-            200000,
-            100,
-            10,
-            10,
-            10,
-            10)
-    stressTest(
-            "ConcurrentHashMapIndex/ConcurrentHashMapIndex [perf test] 2",
-            new ConcurrentHashMapIndex(_, _, 1024),
-            new ConcurrentHashMapIndex(_, _, 1024),
-            200000,
-            100,
-            1,
-            10,
-            1,
-            10)
-    stressTest(
-            "NoOpIndex p3",
-            new NoOpIndex(_, _),
-            new NoOpIndex(_, _),
-            200000,
-            100,
-            10,
-            10,
-            10,
-            10)
-    stressTest(
-            "ConcurrentHashMapIndex/ConcurrentHashMapIndex with many distinct keys",
-            new ConcurrentHashMapIndex(_, _, 128),
-            new ConcurrentHashMapIndex(_, _, 128),
-            200000,
-            100,
-            10,
-            10,
-            10,
-            10,
-            1000)
+            */
 }

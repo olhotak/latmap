@@ -1,21 +1,47 @@
 package latmap
 
-import scala.annotation._, elidable._
-/**
-  * A Plan simply holds a pointer to the root PlanElement.
-  */
-case class Plan(planElements: PlanElement, rule: Rule) {
-  def go (_translator : Translator): Unit = {
-    val evalContext = new EvalContext {
-      override val keyRegs: Array[Int] = new Array[Int](rule.numKeyVars)
-      override val latRegs: Array[Any] = new Array[Any](rule.numLatVars)
-      override val translator: Translator = _translator
-    }
-
+class Plan(planElements: PlanElement, rule: Rule, translator: Translator, numKeyVars: Int, numLatVars: Int) {
+  val evalContext = new EvalContext {
+    override val keyRegs: Array[Int] = new Array[Int](numKeyVars)
+    override val latRegs: Array[Any] = new Array[Any](numLatVars)
+    override val translator: Translator = Plan.this.translator
+  }
+  def go(): Unit = {
     planElements.go(evalContext)
   }
 
   override def toString: String = rule + "\n" + planElements
+}
+
+object Plan {
+  def readRegs(evalContext: EvalContext, row: Array[Int], regs: Array[Int]): Unit = {
+    var i = 0
+    while(i < regs.length) {
+      row(i) = evalContext.keyRegs(regs(i))
+      i += 1
+    }
+  }
+  def readKeyRegs(evalContext: EvalContext, row: Array[Int], keys: Array[Int], regs: Array[Int]): Unit = {
+    var i = 0
+    while(i < keys.length) {
+      row(keys(i)) = evalContext.keyRegs(regs(i))
+      i += 1
+    }
+  }
+  def writeRegs(evalContext: EvalContext, regs: Array[Int], row: Array[Int]): Unit = {
+    var i = 0
+    while(i < regs.length) {
+      evalContext.keyRegs(regs(i)) = row(i)
+      i += 1
+    }
+  }
+  def writeKeyRegs(evalContext: EvalContext, regs: Array[Int], row: Array[Int], nonKeys: Array[Int]): Unit = {
+    var i = 0
+    while(i < nonKeys.length) {
+      evalContext.keyRegs(regs(i)) = row(nonKeys(i))
+      i += 1
+    }
+  }
 }
 
 /**
@@ -27,24 +53,6 @@ trait EvalContext {
 
   val keyRegs: Array[Int]
   val latRegs: Array[Any]
-
-  // These are only for saving and retrieving untranslated objects.
-  def readFromReg(reg: Int): Any = {
-    if (reg >= 1000)
-      latRegs(reg - 1000)
-    else if (reg == -1)
-      true // Lattice values in BoolLattice map to -1
-    else
-      translator.fromInt(keyRegs(reg))
-  }
-  def writeToReg(reg: Int, value: Any): Unit = {
-    if (reg >= 1000)
-      latRegs(reg - 1000) = value
-    else if (reg == -1)
-      throw new RuntimeException("Writing to bool lattice constant register")
-    else
-      keyRegs(reg) = translator.toInt(value)
-  }
 }
 
 /**
@@ -55,327 +63,178 @@ trait PlanElement {
   def go(evalContext: EvalContext): Unit
 }
 
-// TODO: Could just use same set of registers for input and output
-case class KeyScan(index: Index,
-                   inputKeyRegs: Array[Int],
-                   outputKeyRegs: Array[Int]) extends PlanElement {
+final class KeyConstantEval(reg: Int, const: Any) extends PlanElement {
   def go(evalContext: EvalContext): Unit = {
-    val latticeMap = index.latticeMap
-    val keys = new Array[Int](latticeMap.arity)
-    var i = 0
-
-    while (i < latticeMap.arity) {
-      keys(i) = evalContext.keyRegs(inputKeyRegs(i))
-      i += 1
-    }
-    val iterator = index.get(keys)
-    while (iterator.hasNext) {
-      val outputs = iterator.next
-      i = 0
-      while (i < outputKeyRegs.length) {
-        i += 1
-        evalContext.keyRegs(outputKeyRegs(i)) = outputs(i)
-      }
-      next.go(evalContext)
-    }
-  }
-
-  override def toString: String = s"KeyScan $index\n$next"
-}
-
-/**
-  * Const Plan Element 1: Adds constants to EvalContext and calls go() once
-  */
-case class KeyConstantEval(keyReg : Int,
-                       const : Any) extends PlanElement {
-  def go(evalContext: EvalContext): Unit = {
-    // TODO: How do i convert variable to index?
-    evalContext.keyRegs(keyReg) = evalContext.translator.toInt(const)
+    evalContext.keyRegs(reg) = evalContext.translator.toInt(const)
     next.go(evalContext)
   }
 
   override def toString: String = s"KeyConstantEval $const\n$next"
 }
 
-/**
-  * Constant Plan Element 2: Calls go() on all evalContexts that satisfy constant constraint
-  */
-case class KeyConstantFilter(keyReg : Int,
-                        const : Any) extends PlanElement {
+final class KeyConstantFilter(reg: Int, const: Any) extends PlanElement {
   def go(evalContext: EvalContext): Unit = {
-
-    if (evalContext.keyRegs(keyReg) == evalContext.translator.toInt(const)) {
+    if (evalContext.keyRegs(reg) == evalContext.translator.toInt(const)) {
       next.go(evalContext)
     }
   }
 
   override def toString: String = s"KeyConstantFilter $const\n$next"
 }
-// TODO: I combined the two
-// TODO: Don't create these for BoolLattice, const == true
-case class LatConstantEval(latReg : Int, const : Any, lattice : Lattice) extends PlanElement {
+
+final class LatConstantEval(reg: Int, const: Any) extends PlanElement {
   def go(evalContext: EvalContext): Unit = {
-    if (lattice != BoolLattice)
-      evalContext.latRegs(latReg - 1000) = const
-    if (const != lattice.bottom)
-      next.go(evalContext)
+    evalContext.latRegs(reg) = const
+    next.go(evalContext)
   }
 
   override def toString: String = s"LatConstantEval $const\n$next"
 }
 
-case class LatConstantFilter(latReg : Int, const : Any, lattice : Lattice) extends PlanElement {
+final class GlbPlanElement(inOutReg: Int, otherReg: Int, lattice: Lattice) extends PlanElement {
   def go(evalContext: EvalContext): Unit = {
-    val newLat : lattice.Elem = if (lattice == BoolLattice) {
-      (const == true).asInstanceOf[lattice.Elem]
-    } else {
-      val latElem = lattice.glb(const.asInstanceOf[lattice.Elem],
-        evalContext.latRegs(latReg - 1000).asInstanceOf[lattice.Elem])
-      evalContext.latRegs(latReg - 1000) = latElem
-      latElem
-    }
-
-    if (newLat != lattice.bottom)
-      next.go(evalContext)
+    val newLat = lattice.glb(evalContext.latRegs(inOutReg).asInstanceOf[lattice.Elem], evalContext.latRegs(otherReg).asInstanceOf[lattice.Elem])
+    evalContext.latRegs(inOutReg) = newLat
+    if(newLat != lattice.bottom) next.go(evalContext)
   }
 
-  override def toString: String = s"LatConstantFilter $const\n$next"
+  override def toString: String = s"Glb\n$next"
 }
 
-/**
-  * Plan element that performs a scan over the provided index.
-  * For each result in the index,
-  *   writes the keys and lattice element to the provided output registers
-  *   and calls next.go().
-  *
-  * @param index index to scan *
-  * @param inputRegs indices of the input registers. must hold keys.
-  * @param outputRegs indices of the output registers.
-  */
-case class BoolIndexScan(index: Index,
-                     inputRegs: Array[Int],
-                     outputRegs: Array[Int]) extends PlanElement {
+abstract class AbstractIndexScan(index: Index, inputRegs: Array[Int], outputRegs: Array[Int])
+  extends PlanElement {
+  val latMap: AbstractLatMap = index.latMap
+  val keys = index.positions
+  assert(inputRegs.length == keys.length)
+  assert(inputRegs.length + outputRegs.length == latMap.width)
+  val nonKeys: Array[Int] = (0 until latMap.width).toSet.diff(keys.toSet).toSeq.sorted.toArray
+  assert(keys.length + nonKeys.length == latMap.width)
+  val row = latMap.table.allocateRow
+}
 
+final class BoolIndexScan(index: Index, inputRegs: Array[Int], outputRegs: Array[Int])
+  extends AbstractIndexScan(index, inputRegs, outputRegs) {
   def go(evalContext: EvalContext): Unit = {
-    val latticeMap: LatMap[_ <: Lattice] = index.latticeMap
-    val keys = new Array[Int](latticeMap.arity)
-    var i = 0
+    Plan.readKeyRegs(evalContext, row, keys, inputRegs)
 
-    i = 0
-    while (i < latticeMap.arity) {
-      if (inputRegs(i) >= 0)
-        keys(i) = evalContext.keyRegs(inputRegs(i))
-      i += 1
-    }
-
-    val iterator = index.get(keys)
+    val iterator = index.get(row)
     while (iterator.hasNext) {
-      val outputs = iterator.next
-
-      // Write to output registers
-      i = 0
-      while (i < outputRegs.length) {
-        evalContext.keyRegs(outputRegs(i)) = outputs(i)
-        i = i + 1
-      }
-
+      Plan.writeKeyRegs(evalContext, outputRegs, iterator.next(), nonKeys)
       next.go(evalContext)
     }
   }
 
-  override def toString: String = s"BoolIndexScan $index\n$next"
+  override def toString: String = s"BoolIndexScan $index ${inputRegs.mkString} ${outputRegs.mkString}\n$next"
 }
 
-/**
-  * Plan element that performs a scan over the provided index.
-  * For each result in the index,
-  *   writes the keys and lattice element to the provided output registers
-  *   and calls next.go().
-  *
-  * @param index index to scan *
-  * @param mergeLat whether or not to merge the lattice element
-  * @param inputRegs indices of the input registers. must hold keys.
-  * @param outputRegs indices of the output registers.
-  * @param outputLatReg index of the output lattice register.
-  */
-case class IndexScan(index: Index,
-                     mergeLat: Boolean,
-                     inputRegs: Array[Int],
-                     outputRegs: Array[Int],
-                     outputLatReg: Int) extends PlanElement {
-
+final class GeneralIndexScan(index: Index, inputRegs: Array[Int], outputRegs: Array[Int], latReg: Int)
+  extends AbstractIndexScan(index, inputRegs, outputRegs) {
+  val generalLatMap = latMap.asInstanceOf[GeneralLatMap]
   def go(evalContext: EvalContext): Unit = {
-    val latticeMap: LatMap[_ <: Lattice] = index.latticeMap
-    val keys = new Array[Int](latticeMap.arity)
-    var i = 0
+    Plan.readKeyRegs(evalContext, row, keys, inputRegs)
 
-    i = 0
-    while (i < latticeMap.arity) {
-      if (inputRegs(i) >= 0)
-        keys(i) = evalContext.keyRegs(inputRegs(i))
-      i += 1
-    }
-
-    val iterator = index.get(keys)
+    val iterator = index.get(row)
     while (iterator.hasNext) {
-      val outputs = iterator.next
-
-      // Write to output registers
-      i = 0
-      while (i < outputRegs.length) {
-        evalContext.keyRegs(outputRegs(i)) = outputs(i)
-        i = i + 1
-      }
-
-      var newLat = latticeMap.get(outputs)
-      val lattice: Lattice = latticeMap.lattice
-      if (mergeLat)
-        newLat = latticeMap.lattice.glb(newLat, evalContext.latRegs(outputLatReg - 1000).asInstanceOf[latticeMap.lattice.Elem])
-      evalContext.latRegs(outputLatReg - 1000) = newLat
-
-      if (newLat != lattice.bottom)
-        next.go(evalContext)
+      val outRow = iterator.next()
+      Plan.writeKeyRegs(evalContext, outputRegs, outRow, nonKeys)
+      evalContext.latRegs(latReg) = generalLatMap.get(outRow)
+      next.go(evalContext)
     }
   }
 
-  override def toString: String = s"IndexScan $index\n$next"
+  override def toString: String = s"GeneralIndexScan $index ${inputRegs.mkString} ${outputRegs.mkString} $latReg\n$next"
 }
-case class InputPlanElement(outputRegs: Array[Int],
-                            outputLatReg: Int,
-                            latmapGroup : LatMapGroup
-                           ) extends PlanElement {
+
+final class BoolInputPlanElement(outputRegs: Array[Int], latMapGroup: LatMapGroup) extends PlanElement {
   def go(evalContext: EvalContext) : Unit = {
-    val latticeMap = latmapGroup.inputLatMap
-    var i = 0
-
-    val iterator = latticeMap.keyIterator
-    val valueIterator = latticeMap.valueIterator
+    val iterator = latMapGroup.inputLatMap.keyIterator
     while (iterator.hasNext) {
-      val outputs = iterator.next
-
-      // Write to output registers
-      i = 0
-      while (i < outputRegs.length) {
-        evalContext.keyRegs(outputRegs(i)) = outputs(i)
-        i = i + 1
-      }
-
-      var notBottom = true
-      if (outputLatReg >= 0) { // TODO: why is this check here?
-        val newLat = valueIterator.next()
-        if (newLat != latticeMap.lattice.bottom) {
-          evalContext.latRegs(outputLatReg - 1000) = newLat
-        } else {
-          notBottom = false
-        }
-      }
-
-      if (notBottom)
-        next.go(evalContext)
+      Plan.writeRegs(evalContext, outputRegs, iterator.next())
+      next.go(evalContext)
     }
   }
 
-  override def toString: String = s"InputPlanElement $latmapGroup\n$next"
+  override def toString: String = s"BoolInputPlanElement $latMapGroup${outputRegs.mkString("(",",",")")}\n$next"
 }
 
-/**
-  * PlanElement that produces a new value by calling the provided function
-  * on input from the input registers.
-  *
-  * @param inputRegs
-  * @param outputReg
-  * @param function
-  */
-case class Function(inputRegs: Array[Int],
-                    outputReg: Int,
-                    function: AnyRef,
-                    lattice: Option[Lattice]) extends PlanElement {
-  def go(evalContext: EvalContext) = {
-    val args = inputRegs.map((reg) => {
-      if (reg >= 1000)
-        evalContext.latRegs(reg - 1000)
-      else
-        evalContext.translator.fromInt(evalContext.keyRegs(reg))
-    })
-    val result : Any = args.size match {
-      case 0 => function.asInstanceOf[Function0[Any]]()
-      case 1 => function.asInstanceOf[Function1[Any, Any]](args(0))
-      case 2 => function.asInstanceOf[Function2[Any, Any, Any]](args(0), args(1))
-      case 3 => function.asInstanceOf[Function3[Any, Any, Any, Any]](args(0), args(1), args(2))
-      case 4 => function.asInstanceOf[Function4[Any, Any, Any, Any, Any]](args(0), args(1), args(2), args(3))
-      case 5 => function.asInstanceOf[Function5[Any, Any, Any, Any, Any, Any]](args(0), args(1), args(2), args(3), args(4))
-    }
-    if (lattice.isDefined) {
-      if (outputReg >= 1000)
-        evalContext.latRegs(outputReg - 1000) = result
-      if (result != lattice.get.bottom)
-        next.go(evalContext)
-    } else {
-      evalContext.keyRegs(outputReg) = evalContext.translator.toInt(result)
+final class GeneralInputPlanElement(outputRegs: Array[Int], latReg: Int, latMapGroup: LatMapGroup) extends PlanElement {
+  def go(evalContext: EvalContext) : Unit = {
+    val iterator = latMapGroup.inputLatMap.keyIterator
+    val valIterator = latMapGroup.inputLatMap.valueIterator
+    while (iterator.hasNext) {
+      Plan.writeRegs(evalContext, outputRegs, iterator.next())
+      evalContext.latRegs(latReg) = valIterator.next
       next.go(evalContext)
     }
+  }
 
+  override def toString: String = s"GeneralInputPlanElement $latMapGroup\n$next"
+}
+
+final class CastLatKey(keyReg: Int, latReg: Int) extends PlanElement {
+  def go(evalContext: EvalContext) : Unit = {
+    evalContext.keyRegs(keyReg) = evalContext.translator.toInt(evalContext.latRegs(latReg))
+    next.go(evalContext)
+  }
+
+  override def toString: String = s"CastLatKey\n$next"
+
+}
+
+final class CastKeyLat(latReg: Int, keyReg: Int) extends PlanElement {
+  def go(evalContext: EvalContext) : Unit = {
+    evalContext.latRegs(latReg) = evalContext.translator.fromInt(evalContext.keyRegs(keyReg))
+    next.go(evalContext)
+  }
+
+  override def toString: String = s"CastKeyLat $keyReg $latReg\n$next"
+
+}
+
+final class Function(inputRegs: Array[Int], outputReg: Int, function: Any) extends PlanElement {
+  def go(evalContext: EvalContext): Unit = {
+    val result : Any = inputRegs.length match {
+      case 0 => function.asInstanceOf[Function0[Any]]()
+      case 1 => function.asInstanceOf[Function1[Any, Any]](evalContext.latRegs(inputRegs(0)))
+      case 2 => function.asInstanceOf[Function2[Any, Any, Any]](evalContext.latRegs(inputRegs(0)), evalContext.latRegs(inputRegs(1)))
+      case 3 => function.asInstanceOf[Function3[Any, Any, Any, Any]](evalContext.latRegs(inputRegs(0)), evalContext.latRegs(inputRegs(1)), evalContext.latRegs(inputRegs(2)))
+      case 4 => function.asInstanceOf[Function4[Any, Any, Any, Any, Any]](evalContext.latRegs(inputRegs(0)), evalContext.latRegs(inputRegs(1)), evalContext.latRegs(inputRegs(2)), evalContext.latRegs(inputRegs(3)))
+      case 5 => function.asInstanceOf[Function5[Any, Any, Any, Any, Any, Any]](evalContext.latRegs(inputRegs(0)), evalContext.latRegs(inputRegs(1)), evalContext.latRegs(inputRegs(2)), evalContext.latRegs(inputRegs(3)), evalContext.latRegs(inputRegs(4)))
+    }
+    evalContext.latRegs(outputReg) = result
+    next.go(evalContext)
   }
 
   override def toString: String = s"$outputReg := Function(${inputRegs.mkString(", ")})\n$next"
 }
-/**
-  * Writes a (key, value) pair specified by (inputRegs, inputLatReg) to
-  * the provided LatMap.
-  */
-case class WriteToLatMap(inputRegs: Array[Int],
-                         inputLatReg: Int,
-                         latmapGroup : LatMapGroup
-                        ) extends PlanElement {
-  require(inputRegs.length == latmapGroup.arity)
+
+final class WriteToGeneralLatMap(inputRegs: Array[Int], inputLatReg: Int, latMapGroup : LatMapGroup )
+extends PlanElement {
+  require(inputRegs.length == latMapGroup.width)
   def go(evalContext: EvalContext) = {
-    val trueLatMap = latmapGroup.trueLatMap
-    val outputLatMap = latmapGroup.outputLatMap
-    assert(trueLatMap.lattice == outputLatMap.lattice)
-
-    val putElem: outputLatMap.lattice.Elem = if (outputLatMap.lattice == BoolLattice) {
-      true.asInstanceOf[outputLatMap.lattice.Elem]
-    } else {
-      evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem]
-    }
-
-    val putVal = trueLatMap.put(inputRegs.map(evalContext.keyRegs(_)),
-      putElem.asInstanceOf[trueLatMap.lattice.Elem])
-
-    putVal match {
-      case None =>
-        /*if (constRule) {
-          outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)),
-          evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem])
-          println(s"Writing ${inputRegs.map((i) => evalContext.translator.fromInt(evalContext.keyRegs(i)))mkString(" ")} ->" +
-            s" ${evalContext.latRegs(inputLatReg - 1000).asInstanceOf[outputLatMap.lattice.Elem]}" + " to :" + outputLatMap)
-        }*/
-      case Some(elem) =>
-        outputLatMap.put(inputRegs.map(evalContext.keyRegs(_)), elem.asInstanceOf[outputLatMap.lattice.Elem])
-
-        @elidable(FINE) def debugMsg = println(s"Writing ${inputRegs.map((i) => evalContext.translator.fromInt(evalContext.keyRegs(i))) mkString (" ")} ->" +
-          s" ${putElem}" + " to :" + outputLatMap)
-//        debugMsg
-
-    }
-
-    if (next != null)
-      next.go(evalContext)
+    val trueLatMap = latMapGroup.trueLatMap.asInstanceOf[GeneralLatMap]
+    val row = trueLatMap.table.allocateRow
+    Plan.readRegs(evalContext, row, inputRegs)
+    val putVal = trueLatMap.put(row, evalContext.latRegs(inputLatReg))
+    if(putVal ne null) latMapGroup.outputLatMap.put(row, putVal)
+    if (next != null) next.go(evalContext)
   }
-  override def toString: String = s"WriteToLatMap $latmapGroup\n$next"
+
+  override def toString: String = s"WriteToGeneralLatMap $latMapGroup${inputRegs.mkString("(",",",s") $inputLatReg")}\n$next"
 }
 
-/**
-  * Calls the next plan element without doing anything.
-  *
-  * Eliminated in planner (i.e. never run)
-  */
-case class NoOp() extends PlanElement {
-  override def go(evalContext: EvalContext): Unit = {
-    next.go(evalContext)
+final class WriteToBoolLatMap(inputRegs: Array[Int], latMapGroup : LatMapGroup ) extends PlanElement {
+  require(inputRegs.length == latMapGroup.width)
+  def go(evalContext: EvalContext) = {
+    val trueLatMap = latMapGroup.trueLatMap.asInstanceOf[BoolLatMap]
+    val row = trueLatMap.table.allocateRow
+    Plan.readRegs(evalContext, row, inputRegs)
+    val putVal = trueLatMap.put(row)
+    if(putVal) latMapGroup.outputLatMap.put(row, null)
+    if (next != null) next.go(evalContext)
   }
 
-  override def toString: String = s"NoOp\n$next"
+  override def toString: String = s"WriteToBoolLatMap $latMapGroup${inputRegs.mkString("(",",",")")}\n$next"
 }
 
 /**
@@ -383,7 +242,14 @@ case class NoOp() extends PlanElement {
   *
   * Everything after this PlanElement is eliminated by planner (i.e. never run)
   */
-case class DeadEnd() extends PlanElement {
+final class DeadEnd() extends PlanElement {
   override def go(evalContext: EvalContext): Unit = {}
   override def toString: String = s"DeadEnd\n$next"
+}
+
+final class CheckBottom(reg: Int, lattice: Lattice) extends PlanElement {
+  override def go(evalContext: EvalContext): Unit = {
+    if(evalContext.latRegs(reg) != lattice.bottom) next.go(evalContext)
+  }
+  override def toString: String = s"CheckBottom $reg\n$next"
 }

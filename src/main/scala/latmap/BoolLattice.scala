@@ -13,4 +13,5 @@ object BoolLattice extends Lattice {
   def glb(a: Elem, b: Elem): Elem = a && b
   def bottom: Elem = false
   def top: Elem = true
+  override def toString: String = "B"
 }

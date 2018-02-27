@@ -27,7 +27,7 @@ class ProgramImpl extends Program {
     override def toString = result + " := " + function + arguments.mkString("(", ", ", ")")
   }
 
-  def addIndex(latMapGroup: LatMapGroup, indices: Set[Int]): Unit = latMapGroup.trueLatMap.addIndex(new HashMapIndex(latMapGroup.trueLatMap, indices))
+  def addIndex(latMapGroup: LatMapGroup, indices: Set[Int]): Unit = latMapGroup.trueLatMap.addIndex(new HashIndex(latMapGroup.trueLatMap, indices.toArray.sorted))
 
   val rules = mutable.ArrayBuffer[Rule]()
   val latMapGroups = mutable.Set[LatMapGroup]()
@@ -67,7 +67,7 @@ class APIImpl extends API {
     }
 
     def numFacts: Int = {
-      latMapGroup.trueLatMap.numFacts
+      latMapGroup.trueLatMap.size
     }
 
     def dump(): Unit = latMapGroup.trueLatMap.dump(program.translator)

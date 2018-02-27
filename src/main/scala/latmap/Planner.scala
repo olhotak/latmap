@@ -1,8 +1,33 @@
 package latmap
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
-class Planner {
+class RegAlloc(rule: Rule) {
+  var numKeyRegs = 0
+  var numLatRegs = 0
+  def freshKeyReg(): Int = {
+    val ret = numKeyRegs
+    numKeyRegs += 1
+    ret
+  }
+  def freshLatReg(): Int = {
+    val ret = numLatRegs
+    numLatRegs += 1
+    ret
+  }
+  var keyRegs = Map[KeyVariable, Int]()
+  var latRegs = Map[LatVariable, Int]()
+
+  for(v <- rule.variables) {
+    v match {
+      case kv: KeyVariable => keyRegs += (kv -> freshKeyReg())
+      case lv: LatVariable => latRegs += (lv -> freshLatReg())
+    }
+  }
+}
+
+class Planner(program: Program) {
   /**
     * Planner steps:
     * - allocate variables to registers
@@ -20,49 +45,25 @@ class Planner {
     */
   def plan(rule: Rule, bodyIdx: Option[Int] = None): Plan = {
     // Step 1: Allocate variables to registers
-    val var2reg = allocateVariables(rule)
-    val boundVars = mutable.Set[Variable]()
+    val regAlloc = new RegAlloc(rule)
+    var boundVars = Set[Variable]()
 
     // skip step 2 for constant elements
     // Step 2: Create an initial PlanElement and add its variables to the bound list
 
     val remaining = mutable.Set(rule.bodyElements:_*)
-    var curPlanElement: Option[PlanElement] = None
-    var initPlanElement: Option[PlanElement] = curPlanElement
-    var pastDeadEnd = false
+    val planElements = new ArrayBuffer[PlanElement]()
 
-    def addPlanElement(pe: PlanElement, re: RuleElement): Unit = {
-      // Eliminate NoOps and DeadEnds
-      if (pastDeadEnd) {
-        remaining.remove(re)
-        return
-      }
-
-      pe match {
-        case x: NoOp =>
-          remaining.remove(re)
-          return
-        case x: DeadEnd =>
-          pastDeadEnd = true
-        case _ =>
-      }
-
-      curPlanElement match {
-        case Some(cur) =>
-          cur.next = pe
-        case None =>
-          initPlanElement = Some(pe)
-      }
-      curPlanElement = Some(pe)
-
+    def doneRuleElement(re: RuleElement): Unit = {
       boundVars ++= re.variables
       remaining.remove(re)
     }
 
     bodyIdx match {
       case Some(x) =>
-        val be = rule.bodyElements(x).asInstanceOf[LatmapRuleElement]
-        addPlanElement(be.inputPlanElement(var2reg), be)
+        val re = rule.bodyElements(x).asInstanceOf[LatmapRuleElement]
+        planElements.append(re.inputPlanElement(regAlloc))
+        doneRuleElement(re)
       case None =>
     }
 
@@ -80,38 +81,23 @@ class Planner {
         }
       }
       // add new parameter to planElement() for indexCreation
-      addPlanElement(best.planElement(boundVars.toSet, var2reg), best)
+      planElements.appendAll(best.planElements(boundVars, regAlloc))
+      doneRuleElement(best)
 
     }
-    //println("\n")
 
     // Step 4: Add a final PlanElement that writes the result to the LatMap
-    val write = rule.headElement.writeToLatMap(var2reg)
-    curPlanElement.get.next = write
+    planElements.append(rule.headElement.writeToLatMap(regAlloc))
 
-    Plan(initPlanElement.get, rule)
-  }
-
-  def allocateVariables(rule: Rule): mutable.Map[Variable, Int] = {
-    val var2reg = new mutable.HashMap[Variable, Int]
-    var numKeyVars = 0
-    var numLatVars = 0
-
-    rule.variables.foreach {
-      case v@KeyVariable(keyVar) =>
-        var2reg(v) = numKeyVars
-        numKeyVars += 1
-      case v@LatVariable(latVar, lattice) =>
-        if (lattice != BoolLattice) {
-          var2reg(v) = numLatVars + 1000
-        } else {
-          var2reg(v) = -1
-        }
-        numLatVars += 1
+    if(planElements.exists(_.isInstanceOf[DeadEnd])) {
+      planElements.clear()
+      planElements.append(new DeadEnd())
     }
 
-    assert(numKeyVars == rule.numKeyVars)
-    assert(numLatVars == rule.numLatVars)
-    var2reg
+    for(pair <- planElements.sliding(2) if pair.size == 2) {
+      pair(0).next = pair(1)
+    }
+
+    new Plan(planElements.head, rule, program.translator, regAlloc.numKeyRegs, regAlloc.numLatRegs)
   }
 }

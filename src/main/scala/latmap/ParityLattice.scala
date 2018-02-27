@@ -1,7 +1,5 @@
 package latmap
 
-import com.sun.xml.internal.bind.v2.schemagen.xmlschema.TopLevelAttribute
-
 /** Parity lattice.
   */
 object ParityLattice extends Lattice {
@@ -15,8 +13,8 @@ object ParityLattice extends Lattice {
   case object Odd extends Parity
   case object Even extends Parity
   case object Bot extends Parity
-
   type Elem = Parity
+
   def leq(a: Elem, b: Elem): Boolean = (a, b) match {
     case (Bot, _) => true
     case (Odd, Odd) => true

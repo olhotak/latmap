@@ -1,10 +1,8 @@
 package latmap
 
-import scala.annotation._, elidable._
-
 class Solver {
   def solve(program: Program): Unit = {
-    val planner = new Planner()
+    val planner = new Planner(program)
     val keyVarMap = scala.collection.mutable.Map[program.KeyVariable, KeyVariable]()
     val latVarMap = scala.collection.mutable.Map[program.LatVariable, LatVariable]()
 
@@ -32,7 +30,7 @@ class Solver {
           rule.body.map {
             case const: program.Const => const.variable match {
               case k: program.KeyVariable => new KeyConstantRuleElement(
-                convertVariable(k),
+                convertKeyVariable(k),
                 const.constant
               )
               case l: program.LatVariable => new LatConstantRuleElement(
@@ -68,7 +66,7 @@ class Solver {
       val rule : Rule = tup._1
       val plan : Plan = tup._2
 
-      plan.go(program.translator)
+      plan.go()
     })
 
     var done = false
@@ -77,10 +75,10 @@ class Solver {
       done = true
       // swap inputLatMaps with outputLatMaps
       program.latMapGroups.foreach(_.setInput())
-      for (latmapGroup : LatMapGroup <- program.latMapGroups if latmapGroup.inputLatMap.numFacts > 0){
-        regPlans.getOrElse(latmapGroup, Seq()).foreach {case (rule, plan) =>
+      for (latmapGroup: LatMapGroup <- program.latMapGroups if latmapGroup.inputLatMap.numFacts > 0) {
+        regPlans.getOrElse(latmapGroup, Seq()).foreach { case (rule, plan) =>
           done = false
-          plan.go(program.translator)
+          plan.go()
         }
       }
     }
