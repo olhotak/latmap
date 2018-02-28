@@ -22,9 +22,10 @@ class LatMapGroup(val width: Int, val lattice: Lattice, name: String) {
   iterationCount += 1
   var outputLatMap = new LatMapQueue(name+":"+iterationCount)
 
-  def setInput(): Unit = {
-    iterationCount += 1
-    inputLatMap = outputLatMap
-    outputLatMap = new LatMapQueue(name+":"+iterationCount)
+  def clearInput(): Unit = {
+    inputLatMap = new LatMapQueue(name + ":" + iterationCount)
+  }
+  def clearOutput(): Unit = {
+    outputLatMap = new LatMapQueue(name + ":" + iterationCount)
   }
 }

@@ -74,7 +74,28 @@ class Solver {
     while (!done) {
       done = true
       // swap inputLatMaps with outputLatMaps
-      program.latMapGroups.foreach(_.setInput())
+      for (latmapGroup: LatMapGroup <- program.latMapGroups) {
+        latmapGroup.clearInput()
+        latmapGroup.trueLatMap match {
+          case blm: BoolLatMap =>
+            val keys = latmapGroup.outputLatMap.keyIterator
+            while(keys.hasNext) {
+              val row = keys.next()
+              val putVal = blm.put(row)
+              if (putVal) latmapGroup.inputLatMap.put(row, null)
+            }
+          case glm: GeneralLatMap =>
+            val keys = latmapGroup.outputLatMap.keyIterator
+            val values = latmapGroup.outputLatMap.valueIterator
+            while(keys.hasNext) {
+              val row = keys.next()
+              val value = values.next()
+              val putVal = glm.put(row, value)
+              if (putVal ne null) latmapGroup.inputLatMap.put(row, putVal)
+            }
+        }
+        latmapGroup.clearOutput()
+      }
       for (latmapGroup: LatMapGroup <- program.latMapGroups if latmapGroup.inputLatMap.numFacts > 0) {
         regPlans.getOrElse(latmapGroup, Seq()).foreach { case (rule, plan) =>
           done = false

@@ -165,7 +165,11 @@ class LongSolverTest extends FunSuite {
       assert(program.Pt.numFacts() == ptCount)
     }
   }
-//  llvmTest("470.lbm", 469)
-//  llvmTest("429.mcf", 1867)
-//  llvmTest("458.sjeng", 4009)
+  llvmTest("470.lbm", 469)
+  llvmTest("429.mcf", 1867)
+  llvmTest("458.sjeng", 4009)
+  llvmTest("186.crafty", 6398)
+  llvmTest("482.sphinx3", 31406)
+  llvmTest("300.twolf", 24362)
+  llvmTest("197.parser", 249822)
 }

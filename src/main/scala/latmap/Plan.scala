@@ -215,8 +215,7 @@ extends PlanElement {
     val trueLatMap = latMapGroup.trueLatMap.asInstanceOf[GeneralLatMap]
     val row = trueLatMap.table.allocateRow
     Plan.readRegs(evalContext, row, inputRegs)
-    val putVal = trueLatMap.put(row, evalContext.latRegs(inputLatReg))
-    if(putVal ne null) latMapGroup.outputLatMap.put(row, putVal)
+    latMapGroup.outputLatMap.put(row, evalContext.latRegs(inputLatReg).asInstanceOf[AnyRef])
     if (next != null) next.go(evalContext)
   }
 
@@ -229,8 +228,7 @@ final class WriteToBoolLatMap(inputRegs: Array[Int], latMapGroup : LatMapGroup )
     val trueLatMap = latMapGroup.trueLatMap.asInstanceOf[BoolLatMap]
     val row = trueLatMap.table.allocateRow
     Plan.readRegs(evalContext, row, inputRegs)
-    val putVal = trueLatMap.put(row)
-    if(putVal) latMapGroup.outputLatMap.put(row, null)
+    latMapGroup.outputLatMap.put(row, null)
     if (next != null) next.go(evalContext)
   }
 
