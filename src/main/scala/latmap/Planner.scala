@@ -51,12 +51,12 @@ class Planner(program: Program) {
     // skip step 2 for constant elements
     // Step 2: Create an initial PlanElement and add its variables to the bound list
 
-    val remaining = mutable.Set(rule.bodyElements:_*)
+    val remaining = mutable.ListBuffer(rule.bodyElements:_*)
     val planElements = new ArrayBuffer[PlanElement]()
 
     def doneRuleElement(re: RuleElement): Unit = {
       boundVars ++= re.variables
-      remaining.remove(re)
+      remaining -= re
     }
 
     bodyIdx match {
@@ -75,7 +75,7 @@ class Planner(program: Program) {
       var bestCost = Int.MaxValue
       for (elem <- remaining) {
         val elemCost = elem.costEstimate(boundVars.toSet)
-        if (elemCost <= bestCost) {
+        if (elemCost < bestCost) {
           bestCost = elemCost
           best = elem
         }
@@ -83,7 +83,6 @@ class Planner(program: Program) {
       // add new parameter to planElement() for indexCreation
       planElements.appendAll(best.planElements(boundVars, regAlloc))
       doneRuleElement(best)
-
     }
 
     // Step 4: Add a final PlanElement that writes the result to the LatMap
