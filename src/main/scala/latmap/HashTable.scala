@@ -134,13 +134,16 @@ abstract class AbstractLatMap(val width: Int) {
   def rowIterator: table.Iterator = table.iterator
 
   val indices: mutable.ListBuffer[Index] = mutable.ListBuffer.empty[Index]
-  def addIndex(index: Index): Unit = indices += index
+  def addIndex(index: Index): Unit = {
+    assert(!indices.exists(index2 => index2.positions.toSet == index.positions.toSet))
+    indices += index
+  }
   def updateIndices(row: Array[Int]): Unit = indices.foreach(_.put(row))
   def selectIndex(boundVars: Set[Int]): Index = {
     if(boundVars.size == width) allKeyIndex
     else indices.find(_.positions.toSet == boundVars).getOrElse {
       val ret = new NaiveIndex(this, boundVars.toArray)
-      indices += ret
+      addIndex(ret)
       ret
     }
   }
