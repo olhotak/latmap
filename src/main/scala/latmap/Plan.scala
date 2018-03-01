@@ -6,8 +6,11 @@ class Plan(planElements: PlanElement, rule: Rule, translator: Translator, numKey
     override val latRegs: Array[Any] = new Array[Any](numLatVars)
     override val translator: Translator = Plan.this.translator
   }
+  val timer = new Timer
   def go(): Unit = {
+    timer.start()
     planElements.go(evalContext)
+    timer.stop()
   }
 
   override def toString: String = rule + "\n" + planElements
@@ -154,7 +157,7 @@ final class BoolInputPlanElement(outputRegs: Array[Int], latMapGroup: LatMapGrou
     }
   }
 
-  override def toString: String = s"BoolInputPlanElement $latMapGroup${outputRegs.mkString("(",",",")")}\n$next"
+  override def toString: String = s"BoolInputPlanElement $latMapGroup ${outputRegs.mkString}\n$next"
 }
 
 final class GeneralInputPlanElement(outputRegs: Array[Int], latReg: Int, latMapGroup: LatMapGroup) extends PlanElement {
@@ -168,7 +171,7 @@ final class GeneralInputPlanElement(outputRegs: Array[Int], latReg: Int, latMapG
     }
   }
 
-  override def toString: String = s"GeneralInputPlanElement $latMapGroup\n$next"
+  override def toString: String = s"GeneralInputPlanElement $latMapGroup ${outputRegs.mkString} $latReg\n$next"
 }
 
 final class CastLatKey(keyReg: Int, latReg: Int) extends PlanElement {

@@ -17,7 +17,7 @@ class LatMapQueue(name: String) {
 class LatMapGroup(val width: Int, val lattice: Lattice, name: String) {
   override def toString: String = name
   var iterationCount = 0
-  val trueLatMap: AbstractLatMap = if(lattice == BoolLattice) new BoolLatMap(width) else new GeneralLatMap(width, lattice)
+  val trueLatMap: AbstractLatMap = if(lattice == BoolLattice) new BoolLatMap(width, name) else new GeneralLatMap(width, lattice, name)
   var inputLatMap = new LatMapQueue(name+":"+iterationCount)
   iterationCount += 1
   var outputLatMap = new LatMapQueue(name+":"+iterationCount)

@@ -62,6 +62,8 @@ class Solver {
         })
       ).groupBy(_._1).map { case (k,v) => (k,v.map(_._2))}
 
+    val allPlans = constPlans.map{case (rule,plan) => plan} ++ regPlans.flatMap{case (lmg, seq) => seq.map{case (rule, plan) => plan}}
+
     constPlans.foreach((tup) => {
       val rule : Rule = tup._1
       val plan : Plan = tup._2
@@ -102,6 +104,13 @@ class Solver {
           plan.go()
         }
       }
+    }
+
+    val timings = allPlans.map{plan => (plan, plan.timer.elapsedTime)}.sortBy{case (plan, timer) => timer}
+    for((plan, time) <- timings) {
+      println(f"${time/1e9d}%1.3f\n")
+      println(plan)
+      println()
     }
   }
 }

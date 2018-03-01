@@ -148,7 +148,7 @@ abstract class AbstractLatMap(val width: Int) {
   def allKeyIndex: Index
 }
 
-final class BoolLatMap(width: Int) extends AbstractLatMap(width) {
+final class BoolLatMap(width: Int, name: String = "") extends AbstractLatMap(width) {
   def get(row: Array[Int]): Boolean = table.contains(row)
   def put(row: Array[Int]): Boolean = {
     val ret = !HashTable.isExisting(table.insert(row))
@@ -159,9 +159,10 @@ final class BoolLatMap(width: Int) extends AbstractLatMap(width) {
   def dump(translator: Translator): Unit = {
     for(row <- table.iterator) println(row.map(translator.fromInt).mkString(","))
   }
+  override def toString() = name
 }
 
-final class GeneralLatMap(width: Int, val lattice: Lattice) extends AbstractLatMap(width) {
+final class GeneralLatMap(width: Int, val lattice: Lattice, name: String = "") extends AbstractLatMap(width) {
   val latElems = new AssociatedArray {
     type T = AnyRef
     override def newArray(size: Int): Array[AnyRef] = Array.ofDim(size)
@@ -196,6 +197,7 @@ final class GeneralLatMap(width: Int, val lattice: Lattice) extends AbstractLatM
   def dump(translator: Translator): Unit = {
     for(row <- table.iterator) println(row.map(translator.fromInt).mkString(","))
   }
+  override def toString() = name
 }
 
 final class HashIndex(val latMap: AbstractLatMap, val positions: Array[Int]) extends Index {
